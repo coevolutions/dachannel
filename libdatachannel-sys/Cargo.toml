@@ -1,0 +1,10 @@
+[package]
+name = "libdatachannel-sys"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+bindgen = "0.69"
+cmake = "0.1"
+cpp_build = "0.5"
+openssl-src = "300"

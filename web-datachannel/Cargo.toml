@@ -2,6 +2,7 @@
 name = "web-datachannel"
 version = "0.0.0"
 edition = "2021"
+license = "MIT"
 
 [dependencies]
 js-sys = "0.3"

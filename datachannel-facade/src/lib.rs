@@ -1,8 +1,8 @@
 #[cfg(target_arch = "wasm32")]
-mod wasm;
+mod web;
 
 #[cfg(target_arch = "wasm32")]
-pub use wasm::*;
+pub use web::*;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod native;

@@ -16,7 +16,7 @@ dachannel is a WebRTC DataChannel library for both web (using browser WebRTC) an
 
 ```mermaid
 graph BT;
-web-datachannel --wasm--> datachannel-facade
+web-datachannel --web--> datachannel-facade
 libdatachannel-sys --> libdatachannel;
 libdatachannel --native--> datachannel-facade;
 datachannel-facade --> dachannel;

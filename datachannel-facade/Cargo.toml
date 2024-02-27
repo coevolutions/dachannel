@@ -18,8 +18,7 @@ async-channel = "2"
 async-notify = "0.3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-pollster = "0.3"
-test-log = "0.2"
+pollster = { version = "0.3", features = ["macro"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = "0.3"

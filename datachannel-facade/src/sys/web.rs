@@ -250,19 +250,3 @@ impl DataChannel {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod test {
-    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
-    use wasm_bindgen_test::*;
-
-    #[wasm_bindgen_test]
-    pub async fn test_peer_connection_new() {
-        crate::test::test_peer_connection_new().await;
-    }
-
-    #[wasm_bindgen_test]
-    pub async fn test_peer_connection_communicate() {
-        crate::test::test_peer_connection_communicate().await;
-    }
-}

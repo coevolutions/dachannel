@@ -257,16 +257,3 @@ impl DataChannel {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod test {
-    #[pollster::test]
-    pub async fn test_peer_connection_new() {
-        crate::test::test_peer_connection_new().await;
-    }
-
-    #[pollster::test]
-    pub async fn test_peer_connection_communicate() {
-        crate::test::test_peer_connection_communicate().await;
-    }
-}

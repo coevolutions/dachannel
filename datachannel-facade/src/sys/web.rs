@@ -1,3 +1,5 @@
+pub type Configuration = web_datachannel::Configuration;
+
 pub struct PeerConnection {
     inner: web_datachannel::PeerConnection,
 }
@@ -82,7 +84,7 @@ impl PeerConnection {
                     crate::IceTransportPolicy::All => web_datachannel::IceTransportPolicy::All,
                     crate::IceTransportPolicy::Relay => web_datachannel::IceTransportPolicy::Relay,
                 },
-                ..Default::default()
+                ..config.sys
             })?,
         })
     }

@@ -6,6 +6,8 @@
 
 mod sys;
 
+pub mod platform;
+
 /// The property RTCSessionDescription.type is a read-only string value which describes the description's type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SdpType {
@@ -165,6 +167,8 @@ pub struct Configuration {
 
     /// A string representing the current ICE transport policy. Possible values are:
     pub ice_transport_policy: IceTransportPolicy,
+
+    sys: sys::Configuration,
 }
 
 /// An underlying platform error.

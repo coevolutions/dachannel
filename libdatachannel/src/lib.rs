@@ -96,7 +96,7 @@ pub struct Description {
     pub sdp: String,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Configuration {
     pub ice_servers: Vec<String>,
     pub proxy_server: Option<String>,

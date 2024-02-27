@@ -1,5 +1,5 @@
 pub struct PeerConnection {
-    impl_: libdatachannel::PeerConnection,
+    inner: libdatachannel::PeerConnection,
 }
 
 impl From<libdatachannel::Error> for crate::Error {
@@ -92,7 +92,7 @@ impl From<crate::IceCandidate> for libdatachannel::IceCandidate {
 impl PeerConnection {
     pub fn new(config: crate::Configuration) -> Result<Self, crate::Error> {
         Ok(Self {
-            impl_: libdatachannel::PeerConnection::new(libdatachannel::Configuration {
+            inner: libdatachannel::PeerConnection::new(libdatachannel::Configuration {
                 ice_transport_policy: match config.ice_transport_policy {
                     crate::IceTransportPolicy::All => libdatachannel::TransportPolicy::All,
                     crate::IceTransportPolicy::Relay => libdatachannel::TransportPolicy::Relay,
@@ -103,7 +103,7 @@ impl PeerConnection {
     }
 
     pub fn close(&self) -> Result<(), crate::Error> {
-        self.impl_.close()?;
+        self.inner.close()?;
         Ok(())
     }
 
@@ -116,7 +116,7 @@ impl PeerConnection {
         {
             return Ok(());
         }
-        self.impl_.set_local_description(Some(type_.into()))?;
+        self.inner.set_local_description(Some(type_.into()))?;
         Ok(())
     }
 
@@ -124,13 +124,13 @@ impl PeerConnection {
         &self,
         description: &crate::Description,
     ) -> Result<(), crate::Error> {
-        self.impl_
+        self.inner
             .set_remote_description(&description.clone().into())?;
         Ok(())
     }
 
     pub fn local_description(&self) -> Result<Option<crate::Description>, crate::Error> {
-        match self.impl_.local_description() {
+        match self.inner.local_description() {
             Ok(v) => Ok(Some(v.into())),
             Err(libdatachannel::Error::NotAvail) => Ok(None),
             Err(e) => Err(e.into()),
@@ -138,7 +138,7 @@ impl PeerConnection {
     }
 
     pub fn remote_description(&self) -> Result<Option<crate::Description>, crate::Error> {
-        match self.impl_.remote_description() {
+        match self.inner.remote_description() {
             Ok(v) => Ok(Some(v.into())),
             Err(libdatachannel::Error::NotAvail) => Ok(None),
             Err(e) => Err(e.into()),
@@ -149,7 +149,7 @@ impl PeerConnection {
         &self,
         cand: Option<&crate::IceCandidate>,
     ) -> Result<(), crate::Error> {
-        self.impl_
+        self.inner
             .add_remote_candidate(&cand.map(|cand| cand.clone().into()).unwrap_or_else(|| {
                 libdatachannel::IceCandidate {
                     candidate: "".to_string(),
@@ -163,7 +163,7 @@ impl PeerConnection {
         &mut self,
         cb: Option<impl Fn(Option<crate::IceCandidate>) + 'static>,
     ) {
-        self.impl_.set_on_local_candidate(cb.map(|cb| {
+        self.inner.set_on_local_candidate(cb.map(|cb| {
             move |cand: libdatachannel::IceCandidate| {
                 cb(if !cand.candidate.is_empty() {
                     Some(cand.into())
@@ -178,7 +178,7 @@ impl PeerConnection {
         &mut self,
         cb: Option<impl Fn(crate::IceGatheringState) + 'static>,
     ) {
-        self.impl_.set_on_gathering_state_change(
+        self.inner.set_on_gathering_state_change(
             cb.map(|cb| move |state: libdatachannel::GatheringState| cb(state.into())),
         )
     }
@@ -187,13 +187,13 @@ impl PeerConnection {
         &mut self,
         cb: Option<impl Fn(crate::PeerConnectionState) + 'static>,
     ) {
-        self.impl_
+        self.inner
             .set_on_state_change(cb.map(|cb| move |state: libdatachannel::State| cb(state.into())))
     }
 
-    pub fn set_on_data_channel(&mut self, cb: Option<impl Fn(crate::DataChannel) + 'static>) {
-        self.impl_
-            .set_on_data_channel(cb.map(|cb| move |dc| cb(DataChannel { impl_: dc })))
+    pub fn set_on_data_channel(&mut self, cb: Option<impl Fn(DataChannel) + 'static>) {
+        self.inner
+            .set_on_data_channel(cb.map(|cb| move |dc| cb(DataChannel { inner: dc })))
     }
 
     pub fn create_data_channel(
@@ -202,7 +202,7 @@ impl PeerConnection {
         options: crate::DataChannelOptions,
     ) -> Result<DataChannel, crate::Error> {
         Ok(DataChannel {
-            impl_: self.impl_.create_data_channel(
+            inner: self.inner.create_data_channel(
                 label,
                 libdatachannel::DataChannelOptions {
                     reliability: libdatachannel::Reliability {
@@ -222,38 +222,38 @@ impl PeerConnection {
 }
 
 pub struct DataChannel {
-    impl_: libdatachannel::DataChannel,
+    inner: libdatachannel::DataChannel,
 }
 
 impl DataChannel {
     pub fn set_on_open(&mut self, cb: Option<impl Fn() + 'static>) {
-        self.impl_.set_on_open(cb);
+        self.inner.set_on_open(cb);
     }
 
     pub fn set_on_close(&mut self, cb: Option<impl Fn() + 'static>) {
-        self.impl_.set_on_closed(cb);
+        self.inner.set_on_closed(cb);
     }
 
     pub fn set_on_buffered_amount_low(&mut self, cb: Option<impl Fn() + 'static>) {
-        self.impl_.set_on_buffered_amount_low(cb);
+        self.inner.set_on_buffered_amount_low(cb);
     }
 
     pub fn set_on_error(&mut self, cb: Option<impl Fn(&str) + 'static>) {
-        self.impl_.set_on_error(cb);
+        self.inner.set_on_error(cb);
     }
 
     pub fn set_on_message(&mut self, cb: Option<impl Fn(&[u8]) + 'static>) {
-        self.impl_.set_on_message(cb);
+        self.inner.set_on_message(cb);
     }
 
     pub fn set_buffered_amount_low_threshold(&self, value: u32) -> Result<(), crate::Error> {
-        self.impl_
+        self.inner
             .set_buffered_amount_low_threshold(value as usize)?;
         Ok(())
     }
 
     pub fn send(&self, buf: &[u8]) -> Result<(), crate::Error> {
-        self.impl_.send(buf)?;
+        self.inner.send(buf)?;
         Ok(())
     }
 }

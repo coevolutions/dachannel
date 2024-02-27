@@ -5,6 +5,7 @@ edition = "2021"
 license = "MIT"
 
 [dependencies]
+cfg-if = "1"
 log = "0.4"
 thiserror = "1"
 

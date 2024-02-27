@@ -178,6 +178,7 @@ version = "0.0.0"
 dependencies = [
  "async-channel",
  "async-notify",
+ "cfg-if",
  "libdatachannel",
  "log",
  "pollster",

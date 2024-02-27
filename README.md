@@ -2,7 +2,7 @@
 
 dachannel is a WebRTC DataChannel library for both web (using browser WebRTC) and native (using [libdatachannel](https://libdatachannel.org/)). It is comprised of:
 
--   **`libdatachannel` (native) / `web-datachannel` (web)**
+-   **libdatachannel (native) / web-datachannel (web)**
 
     Platform-level libraries for DataChannel support.
 

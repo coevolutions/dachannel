@@ -42,12 +42,6 @@ pub enum SdpType {
     Rollback,
 }
 
-#[derive(Debug)]
-pub struct IceCandidate {
-    pub candidate: String,
-    pub sdp_mid: String,
-}
-
 #[derive(thiserror::Error, Debug)]
 #[error("unknown description type")]
 pub struct SdpTypeParseError;
@@ -145,7 +139,7 @@ pub enum GatheringState {
 #[derive(Default)]
 struct PeerConnectionUserData {
     on_local_description: Option<Box<dyn Fn(&str, SdpType)>>,
-    on_local_candidate: Option<Box<dyn Fn(IceCandidate)>>,
+    on_local_candidate: Option<Box<dyn Fn(&str)>>,
     on_state_change: Option<Box<dyn Fn(State)>>,
     on_gathering_state_change: Option<Box<dyn Fn(GatheringState)>>,
     on_data_channel: Option<Box<dyn Fn(DataChannel)>>,
@@ -264,21 +258,12 @@ impl PeerConnection {
             extern "C" fn local_candidate_callback(
                 _id: i32,
                 cand: *const std::ffi::c_char,
-                mid: *const std::ffi::c_char,
+                _mid: *const std::ffi::c_char,
                 userdata: *mut std::ffi::c_void,
             ) {
                 let ud = unsafe { &*(userdata as *mut PeerConnectionUserData) };
                 if let Some(cb) = &ud.on_local_candidate {
-                    cb(IceCandidate {
-                        candidate: unsafe { std::ffi::CStr::from_ptr(cand) }
-                            .to_str()
-                            .unwrap()
-                            .to_string(),
-                        sdp_mid: unsafe { std::ffi::CStr::from_ptr(mid) }
-                            .to_str()
-                            .unwrap()
-                            .to_string(),
-                    });
+                    cb(unsafe { std::ffi::CStr::from_ptr(cand) }.to_str().unwrap());
                 }
             }
             libdatachannel_sys::rtcSetLocalCandidateCallback(id, Some(local_candidate_callback))
@@ -367,11 +352,10 @@ impl PeerConnection {
         Ok(())
     }
 
-    pub fn add_remote_candidate(&self, cand: &IceCandidate) -> Result<(), Error> {
-        let raw_cand = std::ffi::CString::new(cand.candidate.as_str()).unwrap();
-        let raw_mid = std::ffi::CString::new(cand.sdp_mid.as_str()).unwrap();
+    pub fn add_remote_candidate(&self, cand: &str) -> Result<(), Error> {
+        let raw_cand = std::ffi::CString::new(cand).unwrap();
         check_error(unsafe {
-            libdatachannel_sys::rtcAddRemoteCandidate(self.id, raw_cand.as_ptr(), raw_mid.as_ptr())
+            libdatachannel_sys::rtcAddRemoteCandidate(self.id, raw_cand.as_ptr(), std::ptr::null())
         })?;
         Ok(())
     }
@@ -481,7 +465,7 @@ impl PeerConnection {
         self.userdata.on_local_description = cb.map(|f| Box::new(f) as _);
     }
 
-    pub fn set_on_local_candidate(&mut self, cb: Option<impl Fn(IceCandidate) + 'static>) {
+    pub fn set_on_local_candidate(&mut self, cb: Option<impl Fn(&str) + 'static>) {
         self.userdata.on_local_candidate = cb.map(|f| Box::new(f) as _);
     }
 

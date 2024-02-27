@@ -70,29 +70,44 @@ impl From<libdatachannel::State> for crate::PeerConnectionState {
     }
 }
 
-impl From<libdatachannel::IceCandidate> for crate::IceCandidate {
-    fn from(value: libdatachannel::IceCandidate) -> Self {
-        Self {
-            candidate: value.candidate,
-            sdp_mid: Some(value.sdp_mid),
-            sdp_m_line_index: None,
-        }
-    }
-}
-
-impl From<crate::IceCandidate> for libdatachannel::IceCandidate {
-    fn from(value: crate::IceCandidate) -> Self {
-        Self {
-            candidate: value.candidate,
-            sdp_mid: value.sdp_mid.unwrap_or_else(|| "".to_string()),
-        }
-    }
-}
-
 impl PeerConnection {
     pub fn new(config: crate::Configuration) -> Result<Self, crate::Error> {
         Ok(Self {
             inner: libdatachannel::PeerConnection::new(libdatachannel::Configuration {
+                ice_servers: config
+                    .ice_servers
+                    .into_iter()
+                    .flat_map(|ice_server| {
+                        ice_server
+                            .urls
+                            .into_iter()
+                            .map(|url| {
+                                let mid = if let Some(mid) = url.chars().position(|c| c == ':') {
+                                    mid
+                                } else {
+                                    return url;
+                                };
+
+                                let (proto, rest) = url.split_at(mid);
+                                let rest = &rest[1..];
+
+                                if let (Some(username), Some(credential)) =
+                                    (&ice_server.username, &ice_server.credential)
+                                {
+                                    format!(
+                                        "{}:{}:{}@{}",
+                                        proto,
+                                        urlencoding::encode(username),
+                                        urlencoding::encode(credential),
+                                        rest
+                                    )
+                                } else {
+                                    format!("{}:{}", proto, rest)
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>(),
                 ice_transport_policy: match config.ice_transport_policy {
                     crate::IceTransportPolicy::All => libdatachannel::TransportPolicy::All,
                     crate::IceTransportPolicy::Relay => libdatachannel::TransportPolicy::Relay,
@@ -145,33 +160,15 @@ impl PeerConnection {
         }
     }
 
-    pub async fn add_ice_candidate(
-        &self,
-        cand: Option<&crate::IceCandidate>,
-    ) -> Result<(), crate::Error> {
-        self.inner
-            .add_remote_candidate(&cand.map(|cand| cand.clone().into()).unwrap_or_else(|| {
-                libdatachannel::IceCandidate {
-                    candidate: "".to_string(),
-                    sdp_mid: "".to_string(),
-                }
-            }))?;
+    pub async fn add_ice_candidate(&self, cand: Option<&str>) -> Result<(), crate::Error> {
+        self.inner.add_remote_candidate(&cand.unwrap_or(""))?;
         Ok(())
     }
 
-    pub fn set_on_ice_candidate(
-        &mut self,
-        cb: Option<impl Fn(Option<crate::IceCandidate>) + 'static>,
-    ) {
-        self.inner.set_on_local_candidate(cb.map(|cb| {
-            move |cand: libdatachannel::IceCandidate| {
-                cb(if !cand.candidate.is_empty() {
-                    Some(cand.into())
-                } else {
-                    None
-                })
-            }
-        }))
+    pub fn set_on_ice_candidate(&mut self, cb: Option<impl Fn(Option<&str>) + 'static>) {
+        self.inner.set_on_local_candidate(
+            cb.map(|cb| move |cand: &str| cb(if !cand.is_empty() { Some(cand) } else { None })),
+        )
     }
 
     pub fn set_on_ice_gathering_state_change(
@@ -249,6 +246,11 @@ impl DataChannel {
     pub fn set_buffered_amount_low_threshold(&self, value: u32) -> Result<(), crate::Error> {
         self.inner
             .set_buffered_amount_low_threshold(value as usize)?;
+        Ok(())
+    }
+
+    pub fn close(&self) -> Result<(), crate::Error> {
+        self.inner.close()?;
         Ok(())
     }
 

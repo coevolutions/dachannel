@@ -31,13 +31,6 @@ pub struct Description {
     pub sdp: String,
 }
 
-#[derive(Debug)]
-pub struct IceCandidate {
-    pub candidate: String,
-    pub sdp_mid: Option<String>,
-    pub sdp_m_line_index: Option<u16>,
-}
-
 #[derive(Debug, serde::Serialize)]
 pub struct IceServer {
     pub urls: Vec<String>,
@@ -135,15 +128,15 @@ impl PeerConnection {
         })
     }
 
-    pub fn set_on_ice_candidate(&self, cb: Option<impl Fn(Option<IceCandidate>) + 'static>) {
+    pub fn set_on_ice_candidate(&self, cb: Option<impl Fn(Option<&str>) + 'static>) {
         let cb = cb.map(|cb| {
             wasm_bindgen::closure::Closure::<dyn FnMut(_)>::new(
                 move |ev: web_sys::RtcPeerConnectionIceEvent| {
-                    cb(ev.candidate().map(|cand| IceCandidate {
-                        candidate: cand.candidate(),
-                        sdp_mid: cand.sdp_mid(),
-                        sdp_m_line_index: cand.sdp_m_line_index(),
-                    }));
+                    cb(ev
+                        .candidate()
+                        .map(|cand| cand.candidate())
+                        .as_ref()
+                        .map(|v| v.as_str()));
                 },
             )
         });
@@ -217,13 +210,11 @@ impl PeerConnection {
         })
     }
 
-    pub async fn add_ice_candidate(&self, cand: Option<&IceCandidate>) -> Result<(), crate::Error> {
+    pub async fn add_ice_candidate(&self, cand: Option<&str>) -> Result<(), crate::Error> {
         wasm_bindgen_futures::JsFuture::from(
             self.pc.add_ice_candidate_with_opt_rtc_ice_candidate(
                 cand.map(|cand| {
-                    let mut raw = web_sys::RtcIceCandidateInit::new(cand.candidate.as_str());
-                    raw.sdp_mid(cand.sdp_mid.as_ref().map(|v| v.as_str()));
-                    raw.sdp_m_line_index(cand.sdp_m_line_index);
+                    let raw = web_sys::RtcIceCandidateInit::new(cand);
                     web_sys::RtcIceCandidate::new(&raw).unwrap()
                 })
                 .as_ref(),
@@ -323,6 +314,10 @@ impl DataChannel {
 
     pub fn set_buffered_amount_low_threshold(&self, value: u32) {
         self.dc.set_buffered_amount_low_threshold(value);
+    }
+
+    pub fn close(&self) {
+        self.dc.close();
     }
 
     pub fn send(&self, buf: &[u8]) -> Result<(), Error> {

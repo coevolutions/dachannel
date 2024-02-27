@@ -8,26 +8,6 @@ impl From<web_datachannel::Error> for crate::Error {
     }
 }
 
-impl From<web_datachannel::IceCandidate> for crate::IceCandidate {
-    fn from(value: web_datachannel::IceCandidate) -> Self {
-        Self {
-            candidate: value.candidate,
-            sdp_mid: value.sdp_mid,
-            sdp_m_line_index: value.sdp_m_line_index,
-        }
-    }
-}
-
-impl From<crate::IceCandidate> for web_datachannel::IceCandidate {
-    fn from(value: crate::IceCandidate) -> Self {
-        Self {
-            candidate: value.candidate,
-            sdp_mid: value.sdp_mid,
-            sdp_m_line_index: value.sdp_m_line_index,
-        }
-    }
-}
-
 impl From<crate::SdpType> for web_datachannel::SdpType {
     fn from(value: crate::SdpType) -> Self {
         match value {
@@ -149,23 +129,19 @@ impl PeerConnection {
         Ok(self.inner.remote_description().map(|v| v.into()))
     }
 
-    pub async fn add_ice_candidate(
-        &self,
-        cand: Option<&crate::IceCandidate>,
-    ) -> Result<(), crate::Error> {
+    pub async fn add_ice_candidate(&self, cand: Option<&str>) -> Result<(), crate::Error> {
         self.inner
-            .add_ice_candidate(cand.map(|cand| cand.clone().into()).as_ref())
+            .add_ice_candidate(
+                cand.map(|cand| cand.to_string())
+                    .as_ref()
+                    .map(|v| v.as_str()),
+            )
             .await?;
         Ok(())
     }
 
-    pub fn set_on_ice_candidate(
-        &mut self,
-        cb: Option<impl Fn(Option<crate::IceCandidate>) + 'static>,
-    ) {
-        self.inner.set_on_ice_candidate(cb.map(|cb| {
-            move |cand: Option<web_datachannel::IceCandidate>| cb(cand.map(|cand| cand.into()))
-        }));
+    pub fn set_on_ice_candidate(&mut self, cb: Option<impl Fn(Option<&str>) + 'static>) {
+        self.inner.set_on_ice_candidate(cb);
     }
 
     pub fn set_on_ice_gathering_state_change(
@@ -242,6 +218,11 @@ impl DataChannel {
 
     pub fn set_buffered_amount_low_threshold(&self, value: u32) -> Result<(), crate::Error> {
         self.inner.set_buffered_amount_low_threshold(value);
+        Ok(())
+    }
+
+    pub fn close(&self) -> Result<(), crate::Error> {
+        self.inner.close();
         Ok(())
     }
 

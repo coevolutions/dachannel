@@ -1,7 +1,7 @@
 mod sync_util;
 
-pub mod channel;
-pub mod connection;
+mod channel;
+mod connection;
 
 #[cfg(feature = "client")]
 pub mod client;

@@ -23,3 +23,7 @@ datachannel-facade --> dachannel;
 ```
 
 Each level of the stack is usable independently. If you want an unopinionated platform-independent wrapper, you can use `datachannel-facade`. If you just need a Rust wrapper of libdatachannel, you can use `libdatachannel`.
+
+## Client/Server
+
+dachannel also supports configuring WebRTC in a client-server topology.

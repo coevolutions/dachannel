@@ -160,7 +160,6 @@ pub async fn serve(
                     .layer(tower_http::limit::RequestBodyLimitLayer::new(4096))
                     .into_make_service_with_connect_info::<std::net::SocketAddr>(),
             )
-            .into_future()
             .await
         })(),
         connecting_rx,

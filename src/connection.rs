@@ -25,13 +25,13 @@ impl Connection {
             let _ = ice_candidates_tx.try_send(cand.map(|v| v.to_string()));
         }));
         pc.set_on_ice_gathering_state_change(Some(move |state: IceGatheringState| {
-            let _ = ice_gathering_states_tx.send(state);
+            let _ = ice_gathering_states_tx.try_send(state);
         }));
         pc.set_on_connection_state_change(Some(move |state: PeerConnectionState| {
-            let _ = peer_connection_states_tx.send(state);
+            let _ = peer_connection_states_tx.try_send(state);
         }));
         pc.set_on_data_channel(Some(move |dc: datachannel_facade::DataChannel| {
-            let _ = data_channels_tx.send(dc);
+            let _ = data_channels_tx.try_send(dc);
         }));
 
         Self {

@@ -174,7 +174,7 @@ pub struct Configuration {
 /// An underlying platform error.
 #[derive(thiserror::Error, Debug)]
 #[error("{0}")]
-pub struct Error(Box<dyn std::error::Error + Send + Sync>);
+pub struct Error(Box<dyn std::error::Error + Send + Sync + 'static>);
 
 /// The RTCPeerConnection interface represents a WebRTC connection between the local computer and a remote peer. It
 /// provides methods to connect to a remote peer, maintain and monitor the connection, and close the connection once

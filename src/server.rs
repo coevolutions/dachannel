@@ -1,6 +1,5 @@
 use std::future::IntoFuture;
 
-use axum::body::HttpBody as _;
 use datachannel_facade::platform::native::ConfigurationExt as _;
 use http_body_util::BodyExt as _;
 
@@ -99,10 +98,6 @@ async fn offer(
         axum::http::StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    if body.size_hint().upper().unwrap_or(u64::MAX) > 8 * 1024 {
-        return Err(axum::http::StatusCode::PAYLOAD_TOO_LARGE);
-    }
-
     let (answer_sdp_tx, answer_sdp_rx) = tokio::sync::oneshot::channel();
     state
         .connecting_tx
@@ -153,6 +148,10 @@ pub async fn serve(
                             .allow_methods([axum::http::Method::POST])
                             .allow_origin(tower_http::cors::Any),
                     )
+                    .layer(tower_http::limit::RequestBodyLimitLayer::new(4096))
+                    .layer(tower_http::timeout::TimeoutLayer::new(
+                        std::time::Duration::from_secs(30),
+                    ))
                     .into_make_service_with_connect_info::<std::net::SocketAddr>(),
             )
             .into_future()

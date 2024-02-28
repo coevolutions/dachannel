@@ -2,6 +2,8 @@
 name = "libdatachannel-sys"
 version = "0.20.1"
 edition = "2021"
+license = "MIT"
+repository = "https://github.com/coevolutions/dachannel"
 
 [build-dependencies]
 bindgen = "0.69"

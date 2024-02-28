@@ -3,6 +3,7 @@ name = "web-datachannel"
 version = "0.0.0"
 edition = "2021"
 license = "MIT"
+repository = "https://github.com/coevolutions/dachannel"
 
 [dependencies]
 js-sys = "0.3"

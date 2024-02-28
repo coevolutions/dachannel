@@ -15,8 +15,8 @@ pub enum Error {
     #[error("malformed body")]
     MalformedBody,
 
-    #[error("missing local description")]
-    MissingLocalDescription,
+    #[error("closed")]
+    Closed,
 }
 
 pub struct Connecting {
@@ -68,9 +68,12 @@ impl std::future::IntoFuture for Connecting {
             let answer_sdp = self
                 .connection
                 .local_description()?
-                .ok_or(Error::MissingLocalDescription)?
-                .sdp;
-            let _ = self.answer_sdp_tx.send(answer_sdp);
+                .map(|v| v.sdp)
+                .unwrap_or_else(|| "".to_string());
+
+            self.answer_sdp_tx
+                .send(answer_sdp)
+                .map_err(|_| Error::Closed)?;
 
             Ok(self.connection)
         })

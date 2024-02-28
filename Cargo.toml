@@ -1,5 +1,5 @@
 [workspace]
-members = ["datachannel-facade", "libdatachannel", "libdatachannel-sys", "web-datachannel"]
+members = ["datachannel-facade", "examples/simple-wasm-client", "examples/simple-server", "libdatachannel", "libdatachannel-sys", "web-datachannel"]
 
 [package]
 name = "dachannel"
@@ -8,7 +8,7 @@ edition = "2021"
 license = "MIT"
 
 [features]
-default = ["server", "client"]
+default = []
 server = ["dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio"]
 client = ["dep:reqwest"]
 

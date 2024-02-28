@@ -7,6 +7,9 @@ pub struct PeerConnection {
 #[derive(thiserror::Error, Debug)]
 pub struct Error(js_sys::Error);
 
+unsafe impl Send for Error {}
+unsafe impl Sync for Error {}
+
 impl From<wasm_bindgen::JsValue> for Error {
     fn from(value: wasm_bindgen::JsValue) -> Self {
         Self(value.into())

@@ -121,9 +121,18 @@ async fn offer(
         return Ok(resp);
     };
 
-    Ok(hyper::Response::new(http_body_util::Full::new(
-        hyper::body::Bytes::from(answer_sdp),
-    )))
+    let mut resp = hyper::Response::new(http_body_util::Full::new(hyper::body::Bytes::from(
+        answer_sdp,
+    )));
+    resp.headers_mut().append(
+        hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN,
+        hyper::header::HeaderValue::from_str("*").unwrap(),
+    );
+    resp.headers_mut().append(
+        hyper::header::ACCESS_CONTROL_ALLOW_METHODS,
+        hyper::header::HeaderValue::from_str("POST").unwrap(),
+    );
+    Ok(resp)
 }
 
 impl Server {

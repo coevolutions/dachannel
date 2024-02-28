@@ -1,0 +1,10 @@
+[package]
+name = "simple-echo-server"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+dachannel = { path = "../.." }
+dachannel-server = { path = "../../dachannel-server" }
+tokio = { version = "1", features = ["full"] }

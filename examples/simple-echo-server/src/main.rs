@@ -21,7 +21,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     });
 
     while let Some(connecting) = connecting_rx.recv().await.ok() {
-        println!("got connection from {}", connecting.remote_addr());
+        let remote_addr = connecting.remote_addr().clone();
+        println!("[{}] connected", remote_addr);
 
         let dc = connecting.connection().create_data_channel(
             "test",
@@ -31,10 +32,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 ..Default::default()
             },
         )?;
-        let _pc = connecting.await?;
 
-        dc.send(b"hello world").await?;
-        println!("got: {:?}", dc.recv().await);
+        let pc = connecting.await?;
+
+        tokio::spawn(async move {
+            let _pc = pc;
+            loop {
+                let buf = match dc.recv().await {
+                    Ok(buf) => buf,
+                    Err(e) => {
+                        println!("[{}] disconnected: {}", remote_addr, e);
+                        break;
+                    }
+                };
+
+                println!("[{}] {:?}", remote_addr, String::from_utf8_lossy(&buf));
+                dc.send(&buf).await.unwrap();
+            }
+        });
     }
     Ok(())
 }

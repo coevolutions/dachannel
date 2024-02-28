@@ -1,10 +1,10 @@
 [package]
-name = "simple-server"
+name = "simple-echo-client"
 version = "0.0.0"
 edition = "2021"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 dachannel = { path = "../.." }
-dachannel-server = { path = "../../dachannel-server" }
+dachannel-client = { path = "../../dachannel-client" }
 tokio = { version = "1", features = ["full"] }

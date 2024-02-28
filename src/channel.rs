@@ -1,3 +1,5 @@
+use futures::FutureExt as _;
+
 /// The receiver half of a channel.
 pub struct Receiver {
     rx: async_channel::Receiver<Vec<u8>>,
@@ -5,8 +7,11 @@ pub struct Receiver {
 
 impl Receiver {
     /// Receive a datagram from the channel, or [`None`] if the channel is closed.
-    pub async fn recv(&self) -> Option<Vec<u8>> {
-        self.rx.recv().await.ok()
+    pub async fn recv(&self) -> Result<Vec<u8>, std::io::Error> {
+        self.rx
+            .recv()
+            .await
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "receiver closed"))
     }
 
     /// Rejoin the Receiver with its Sender.
@@ -18,14 +23,22 @@ impl Receiver {
 /// The sender half of a channel.
 pub struct Sender {
     is_open_notify: std::sync::Arc<crate::sync_util::PermanentNotify>,
+    is_closed_notify: std::sync::Arc<crate::sync_util::PermanentNotify>,
     dc: datachannel_facade::DataChannel,
 }
 
 impl Sender {
     /// Send a datagram to the channel.
-    pub async fn send(&self, buf: &[u8]) -> Result<(), crate::Error> {
-        self.is_open_notify.notified().await;
-        self.dc.send(buf)?;
+    pub async fn send(&self, buf: &[u8]) -> Result<(), std::io::Error> {
+        futures::select! {
+            _ = self.is_open_notify.notified().fuse() => {}
+            _ = self.is_closed_notify.notified().fuse() => {
+                return Err(std::io::Error::new(std::io::ErrorKind::BrokenPipe, "channel closed"))
+            }
+        };
+        self.dc
+            .send(buf)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         Ok(())
     }
 
@@ -50,6 +63,7 @@ impl Channel {
         if is_open {
             is_open_notify.notify();
         }
+        let is_closed_notify = std::sync::Arc::new(crate::sync_util::PermanentNotify::new());
 
         let (tx, rx) = async_channel::unbounded();
 
@@ -73,25 +87,31 @@ impl Channel {
             }
         }));
         dc.set_on_close(Some({
+            let is_closed_notify = std::sync::Arc::clone(&is_closed_notify);
             let tx = tx.clone();
             move || {
                 tx.close();
+                is_closed_notify.notify();
             }
         }));
 
         Channel {
             receiver: Receiver { rx },
-            sender: Sender { dc, is_open_notify },
+            sender: Sender {
+                dc,
+                is_open_notify,
+                is_closed_notify,
+            },
         }
     }
 
     /// Receive a datagram from the channel, or [`None`] if the channel is closed.
-    pub async fn recv(&self) -> Option<Vec<u8>> {
+    pub async fn recv(&self) -> Result<Vec<u8>, std::io::Error> {
         self.receiver.recv().await
     }
 
     /// Send a datagram to the channel.
-    pub async fn send(&self, buf: &[u8]) -> Result<(), crate::Error> {
+    pub async fn send(&self, buf: &[u8]) -> Result<(), std::io::Error> {
         self.sender.send(buf).await
     }
 

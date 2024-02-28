@@ -71,7 +71,7 @@ impl Connection {
         self.peer_connection_states_rx.recv().await.ok()
     }
 
-    pub async fn next_channel(&self) -> Option<crate::Channel> {
+    pub async fn accept_channel(&self) -> Option<crate::Channel> {
         Some(super::Channel::wrap(
             self.data_channels_rx.recv().await.ok()?,
         ))

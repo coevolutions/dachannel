@@ -9,8 +9,9 @@ axum = "0.7"
 dachannel = { path = ".." }
 datachannel-facade = { path = "../datachannel-facade" }
 log = "0.4"
-tower-http = { version = "0.5", features = ["cors", "limit", "timeout"] }
+tower-http = { version = "0.5", features = ["cors", "limit"] }
 hyper-util = { version = "0.1", features = ["full"] }
 http-body-util = "0.1"
 tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["io"] }
 thiserror = "1"

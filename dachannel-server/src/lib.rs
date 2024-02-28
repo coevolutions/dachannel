@@ -2,6 +2,7 @@ use std::future::IntoFuture;
 
 use datachannel_facade::platform::native::ConfigurationExt as _;
 use http_body_util::BodyExt as _;
+use tokio::io::AsyncWriteExt;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -23,7 +24,7 @@ pub struct Connecting {
     remote_addr: std::net::SocketAddr,
     connection: dachannel::Connection,
     body: axum::body::Body,
-    answer_sdp_tx: tokio::sync::oneshot::Sender<String>,
+    answer_sdp_tx: Option<tokio::io::DuplexStream>,
 }
 
 impl Connecting {
@@ -48,8 +49,8 @@ impl std::future::IntoFuture for Connecting {
     type Output = Result<dachannel::Connection, Error>;
     type IntoFuture = std::pin::Pin<Box<dyn std::future::Future<Output = Self::Output> + Send>>;
 
-    fn into_future(self) -> Self::IntoFuture {
-        Box::pin(async {
+    fn into_future(mut self) -> Self::IntoFuture {
+        Box::pin(async move {
             let offer_sdp = String::from_utf8(self.body.collect().await?.to_bytes().to_vec())
                 .map_err(|_| Error::MalformedBody)?;
 
@@ -71,7 +72,10 @@ impl std::future::IntoFuture for Connecting {
                 .unwrap_or_else(|| "".to_string());
 
             self.answer_sdp_tx
-                .send(answer_sdp)
+                .take()
+                .unwrap()
+                .write_all(answer_sdp.as_bytes())
+                .await
                 .map_err(|_| Error::Closed)?;
 
             Ok(self.connection)
@@ -83,7 +87,7 @@ async fn offer(
     axum::extract::State(state): axum::extract::State<std::sync::Arc<AppState>>,
     axum::extract::ConnectInfo(remote_addr): axum::extract::ConnectInfo<std::net::SocketAddr>,
     req: axum::extract::Request,
-) -> Result<String, axum::http::StatusCode> {
+) -> Result<impl axum::response::IntoResponse, axum::http::StatusCode> {
     let (parts, body) = req.into_parts();
 
     let mut config: dachannel::Configuration = Default::default();
@@ -98,7 +102,7 @@ async fn offer(
         axum::http::StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let (answer_sdp_tx, answer_sdp_rx) = tokio::sync::oneshot::channel();
+    let (answer_sdp_tx, answer_sdp_rx) = tokio::io::duplex(4096);
     state
         .connecting_tx
         .send(Connecting {
@@ -106,16 +110,14 @@ async fn offer(
             remote_addr,
             connection,
             body,
-            answer_sdp_tx,
+            answer_sdp_tx: Some(answer_sdp_tx),
         })
         .await
         .map_err(|_e| axum::http::StatusCode::SERVICE_UNAVAILABLE)?;
 
-    let answer_sdp = answer_sdp_rx
-        .await
-        .map_err(|_e| axum::http::StatusCode::FORBIDDEN)?;
-
-    Ok(answer_sdp)
+    Ok(axum::body::Body::from_stream(
+        tokio_util::io::ReaderStream::new(answer_sdp_rx),
+    ))
 }
 
 struct AppState {
@@ -149,9 +151,6 @@ pub async fn serve(
                             .allow_origin(tower_http::cors::Any),
                     )
                     .layer(tower_http::limit::RequestBodyLimitLayer::new(4096))
-                    .layer(tower_http::timeout::TimeoutLayer::new(
-                        std::time::Duration::from_secs(30),
-                    ))
                     .into_make_service_with_connect_info::<std::net::SocketAddr>(),
             )
             .into_future()

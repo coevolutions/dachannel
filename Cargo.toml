@@ -1,5 +1,5 @@
 [workspace]
-members = ["datachannel-facade", "examples/simple-wasm-client", "examples/simple-echo-server", "libdatachannel", "libdatachannel-sys", "web-datachannel", "dachannel-client", "dachannel-server", "examples/simple-echo-client"]
+members = ["datachannel-facade", "examples/simple-wasm-client", "examples/simple-echo-server", "libdatachannel", "libdatachannel/libdatachannel-sys", "web-datachannel", "dachannel-client", "dachannel-server", "examples/simple-echo-client"]
 
 [package]
 name = "dachannel"

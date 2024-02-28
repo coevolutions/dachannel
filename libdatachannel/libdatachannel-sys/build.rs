@@ -28,10 +28,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
         cmake.define("OPENSSL_USE_STATIC_LIBS", "TRUE");
 
-        cpp_build::Config::new()
-            .include(format!("{}/lib", out_dir))
-            .build("src/lib.rs");
-
         println!(
             "cargo:rustc-link-search=native={}",
             openssl_artifacts.lib_dir().to_str().unwrap()
@@ -46,7 +42,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    #[cfg(not(feature = "vendored"))]
+    {
+        println!("cargo:rustc-link-lib=dylib=crypto");
+        println!("cargo:rustc-link-lib=dylib=ssl");
+    }
+
     cmake.build();
+
+    cpp_build::Config::new()
+        .include(format!("{}/lib", out_dir))
+        .build("src/lib.rs");
 
     rustc_link_search(&cmake, &format!("native={out_dir}/build/deps/libjuice"));
     println!("cargo:rustc-link-lib=static=juice-static");

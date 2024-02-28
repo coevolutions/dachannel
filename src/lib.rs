@@ -1,8 +1,10 @@
 pub mod channel;
 pub mod connection;
 
-pub use channel::Channel;
+pub use channel::*;
 pub use connection::*;
+
+pub use datachannel_facade::Error;
 
 #[cfg(test)]
 mod test {
@@ -37,7 +39,7 @@ mod test {
             )
             .unwrap();
         conn1.set_local_description(SdpType::Offer).await.unwrap();
-        while conn1.next_ice_gathering_state().await.unwrap() != IceGatheringState::Complete {}
+        conn1.ice_candidates_gathered().await;
 
         let conn2 = Connection::new(Default::default()).unwrap();
         let chan2 = conn2
@@ -57,7 +59,7 @@ mod test {
             .unwrap();
 
         conn2.set_local_description(SdpType::Answer).await.unwrap();
-        while conn2.next_ice_gathering_state().await.unwrap() != IceGatheringState::Complete {}
+        conn2.ice_candidates_gathered().await;
 
         conn1
             .set_remote_description(&conn2.local_description().unwrap().unwrap())

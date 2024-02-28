@@ -1,5 +1,3 @@
-use futures::FutureExt as _;
-
 /// The receiver half of a channel.
 pub struct Receiver {
     rx: async_channel::Receiver<Vec<u8>>,
@@ -23,19 +21,13 @@ impl Receiver {
 /// The sender half of a channel.
 pub struct Sender {
     is_open_notify: std::sync::Arc<crate::sync_util::PermanentNotify>,
-    is_closed_notify: std::sync::Arc<crate::sync_util::PermanentNotify>,
     dc: datachannel_facade::DataChannel,
 }
 
 impl Sender {
     /// Send a datagram to the channel.
     pub async fn send(&self, buf: &[u8]) -> Result<(), std::io::Error> {
-        futures::select! {
-            _ = self.is_open_notify.notified().fuse() => {}
-            _ = self.is_closed_notify.notified().fuse() => {
-                return Err(std::io::Error::new(std::io::ErrorKind::BrokenPipe, "channel closed"))
-            }
-        };
+        self.is_open_notify.notified().await;
         self.dc
             .send(buf)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
@@ -63,7 +55,6 @@ impl Channel {
         if is_open {
             is_open_notify.notify();
         }
-        let is_closed_notify = std::sync::Arc::new(crate::sync_util::PermanentNotify::new());
 
         let (tx, rx) = async_channel::unbounded();
 
@@ -87,21 +78,15 @@ impl Channel {
             }
         }));
         dc.set_on_close(Some({
-            let is_closed_notify = std::sync::Arc::clone(&is_closed_notify);
             let tx = tx.clone();
             move || {
                 tx.close();
-                is_closed_notify.notify();
             }
         }));
 
         Channel {
             receiver: Receiver { rx },
-            sender: Sender {
-                dc,
-                is_open_notify,
-                is_closed_notify,
-            },
+            sender: Sender { dc, is_open_notify },
         }
     }
 

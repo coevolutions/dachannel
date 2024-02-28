@@ -3,8 +3,9 @@ name = "libdatachannel-sys"
 description = "Bindings to libdatachannel's C API"
 version = "0.20.1"
 edition = "2021"
-license = "MIT"
+license = "MPL-2.0"
 repository = "https://github.com/coevolutions/dachannel"
+exclude = ["libdatachannel/examples", "libdatachannel/deps/*/fuzzer", "libdatachannel/deps/*/test", "libdatachannel/deps/*/tests", "libdatachannel/deps/json"]
 
 [build-dependencies]
 bindgen = "0.69"

@@ -124,34 +124,33 @@ struct AppState {
 pub async fn serve(
     listener: tokio::net::TcpListener,
     backlog: usize,
-) -> Result<
-    (
-        impl std::future::Future<Output = Result<(), std::io::Error>>,
-        async_channel::Receiver<Connecting>,
-    ),
-    std::io::Error,
-> {
+) -> (
+    impl std::future::Future<Output = Result<(), std::io::Error>>,
+    async_channel::Receiver<Connecting>,
+) {
     let (connecting_tx, connecting_rx) = async_channel::bounded(backlog);
-    let bind_addr = listener.local_addr()?;
-
-    Ok((
-        axum::serve(
-            listener,
-            axum::Router::new()
-                .route("/", axum::routing::post(offer))
-                .with_state(std::sync::Arc::new(AppState {
-                    bind_addr,
-                    connecting_tx: connecting_tx.clone(),
-                }))
-                .layer(
-                    tower_http::cors::CorsLayer::new()
-                        .allow_headers([axum::http::header::AUTHORIZATION])
-                        .allow_methods([axum::http::Method::POST])
-                        .allow_origin(tower_http::cors::Any),
-                )
-                .into_make_service_with_connect_info::<std::net::SocketAddr>(),
-        )
-        .into_future(),
+    (
+        (move || async move {
+            let bind_addr = listener.local_addr()?;
+            axum::serve(
+                listener,
+                axum::Router::new()
+                    .route("/", axum::routing::post(offer))
+                    .with_state(std::sync::Arc::new(AppState {
+                        bind_addr,
+                        connecting_tx: connecting_tx.clone(),
+                    }))
+                    .layer(
+                        tower_http::cors::CorsLayer::new()
+                            .allow_headers([axum::http::header::AUTHORIZATION])
+                            .allow_methods([axum::http::Method::POST])
+                            .allow_origin(tower_http::cors::Any),
+                    )
+                    .into_make_service_with_connect_info::<std::net::SocketAddr>(),
+            )
+            .into_future()
+            .await
+        })(),
         connecting_rx,
-    ))
+    )
 }

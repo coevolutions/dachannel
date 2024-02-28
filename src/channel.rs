@@ -15,6 +15,10 @@ impl Receiver {
     pub async fn recv(&self) -> Result<Vec<u8>, Error> {
         Ok(self.rx.recv().await.map_err(|_| Error::Closed)?)
     }
+
+    pub fn unsplit(self, sender: Sender) -> Channel {
+        sender.unsplit(self)
+    }
 }
 
 pub struct Sender {
@@ -29,6 +33,13 @@ impl Sender {
         }
         self.dc.send(buf)?;
         Ok(())
+    }
+
+    pub fn unsplit(self, receiver: Receiver) -> Channel {
+        Channel {
+            receiver,
+            sender: self,
+        }
     }
 }
 

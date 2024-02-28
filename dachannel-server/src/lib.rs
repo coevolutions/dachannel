@@ -99,6 +99,7 @@ async fn offer(
         state.bind_addr.port(),
         state.bind_addr.port(),
     );
+    config.set_enable_ice_udp_mux(true);
 
     let connection_builder = dachannel::Connection::builder(config).map_err(|e| {
         log::error!("failed to create connection: {e}");

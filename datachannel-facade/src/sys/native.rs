@@ -124,6 +124,7 @@ impl PeerConnection {
                     crate::IceTransportPolicy::All => libdatachannel::TransportPolicy::All,
                     crate::IceTransportPolicy::Relay => libdatachannel::TransportPolicy::Relay,
                 },
+                disable_auto_negotiation: true,
                 ..config.sys
             })?,
         })

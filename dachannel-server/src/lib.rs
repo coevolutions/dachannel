@@ -1,5 +1,3 @@
-use std::future::IntoFuture;
-
 use datachannel_facade::platform::native::ConfigurationExt as _;
 use http_body_util::BodyExt as _;
 use tokio::io::AsyncWriteExt;

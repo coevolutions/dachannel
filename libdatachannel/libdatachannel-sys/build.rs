@@ -8,8 +8,6 @@ fn rustc_link_search(cmake: &cmake::Config, path: &str) {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let openssl_artifacts = openssl_src::Build::new().build();
-
     let out_dir = std::env::var("OUT_DIR").unwrap();
 
     let mut cmake = cmake::Config::new("libdatachannel");
@@ -21,30 +19,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     cmake.define("NO_MEDIA", "ON");
     cmake.define("NO_TESTS", "ON");
 
-    cmake.define(
-        "OPENSSL_ROOT_DIR",
-        openssl_artifacts.lib_dir().parent().unwrap(),
-    );
-    cmake.define("OPENSSL_USE_STATIC_LIBS", "TRUE");
+    #[cfg(feature = "vendored")]
+    {
+        let openssl_artifacts = openssl_src::Build::new().build();
+        cmake.define(
+            "OPENSSL_ROOT_DIR",
+            openssl_artifacts.lib_dir().parent().unwrap(),
+        );
+        cmake.define("OPENSSL_USE_STATIC_LIBS", "TRUE");
+
+        cpp_build::Config::new()
+            .include(format!("{}/lib", out_dir))
+            .build("src/lib.rs");
+
+        println!(
+            "cargo:rustc-link-search=native={}",
+            openssl_artifacts.lib_dir().to_str().unwrap()
+        );
+
+        if cfg!(target_env = "msvc") {
+            println!("cargo:rustc-link-lib=static=libcrypto");
+            println!("cargo:rustc-link-lib=static=libssl");
+        } else {
+            println!("cargo:rustc-link-lib=static=crypto");
+            println!("cargo:rustc-link-lib=static=ssl");
+        }
+    }
 
     cmake.build();
-
-    cpp_build::Config::new()
-        .include(format!("{}/lib", out_dir))
-        .build("src/lib.rs");
-
-    println!(
-        "cargo:rustc-link-search=native={}",
-        openssl_artifacts.lib_dir().to_str().unwrap()
-    );
-
-    if cfg!(target_env = "msvc") {
-        println!("cargo:rustc-link-lib=static=libcrypto");
-        println!("cargo:rustc-link-lib=static=libssl");
-    } else {
-        println!("cargo:rustc-link-lib=static=crypto");
-        println!("cargo:rustc-link-lib=static=ssl");
-    }
 
     rustc_link_search(&cmake, &format!("native={out_dir}/build/deps/libjuice"));
     println!("cargo:rustc-link-lib=static=juice-static");

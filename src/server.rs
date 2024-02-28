@@ -114,7 +114,7 @@ struct AppState {
     connecting_tx: async_channel::Sender<Connecting>,
 }
 
-pub async fn listen(
+pub async fn serve(
     listener: tokio::net::TcpListener,
     backlog: usize,
 ) -> Result<

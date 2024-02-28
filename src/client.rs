@@ -36,7 +36,7 @@ mod test {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let local_addr = listener.local_addr().unwrap();
 
-        let (serve_fut, connecting_rx) = crate::server::listen(listener, 128).await.unwrap();
+        let (serve_fut, connecting_rx) = crate::server::serve(listener, 128).await.unwrap();
 
         tokio::spawn(async move {
             serve_fut.await.unwrap();

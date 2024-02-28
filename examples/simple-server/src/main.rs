@@ -14,7 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let local_addr = listener.local_addr()?;
     println!("listening on: {}", local_addr);
 
-    let (serve_fut, connecting_rx) = dachannel::server::listen(listener, 128).await?;
+    let (serve_fut, connecting_rx) = dachannel::server::serve(listener, 128).await?;
 
     tokio::spawn(async move {
         serve_fut.await.unwrap();

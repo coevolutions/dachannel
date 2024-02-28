@@ -8,13 +8,15 @@ edition = "2021"
 license = "MIT"
 
 [features]
-default = ["server"]
+default = ["server", "client"]
 server = ["dep:hyper", "dep:tokio"]
+client = ["dep:reqwest"]
 
 [dependencies]
 async-channel = "2"
 async-lock = "3"
 datachannel-facade = { path = "datachannel-facade" }
+reqwest = { version = "0.11", optional = true }
 oneshot = "0.1"
 thiserror = "1"
 

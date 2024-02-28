@@ -1,6 +1,9 @@
 pub mod channel;
 pub mod connection;
 
+#[cfg(feature = "client")]
+pub mod client;
+
 #[cfg(all(not(target_arch = "wasm32"), feature = "server"))]
 pub mod server;
 

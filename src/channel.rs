@@ -17,16 +17,14 @@ impl Receiver {
 
 /// The sender half of a channel.
 pub struct Sender {
-    is_open_rx: async_lock::Mutex<Option<oneshot::Receiver<()>>>,
+    is_open_notify: std::sync::Arc<crate::sync_util::PermanentNotify>,
     dc: datachannel_facade::DataChannel,
 }
 
 impl Sender {
     /// Send a datagram to the channel.
     pub async fn send(&self, buf: &[u8]) -> Result<(), crate::Error> {
-        if let Some(is_open_rx) = self.is_open_rx.lock().await.take() {
-            let _ = is_open_rx.await;
-        }
+        self.is_open_notify.notified().await;
         self.dc.send(buf)?;
         Ok(())
     }
@@ -48,16 +46,17 @@ pub struct Channel {
 
 impl Channel {
     pub(crate) fn wrap(mut dc: datachannel_facade::DataChannel, is_open: bool) -> Channel {
-        let (is_open_tx, is_open_rx) = oneshot::channel();
+        let is_open_notify = std::sync::Arc::new(crate::sync_util::PermanentNotify::new());
+        if is_open {
+            is_open_notify.notify();
+        }
+
         let (tx, rx) = async_channel::unbounded();
 
         dc.set_on_open(Some({
-            let is_open_tx =
-                std::cell::RefCell::new(if !is_open { Some(is_open_tx) } else { None });
+            let is_open_notify = std::sync::Arc::clone(&is_open_notify);
             move || {
-                if let Some(is_open_tx) = is_open_tx.take() {
-                    let _ = is_open_tx.send(());
-                }
+                is_open_notify.notify();
             }
         }));
         dc.set_on_message(Some({
@@ -82,10 +81,7 @@ impl Channel {
 
         Channel {
             receiver: Receiver { rx },
-            sender: Sender {
-                dc,
-                is_open_rx: async_lock::Mutex::new(Some(is_open_rx)),
-            },
+            sender: Sender { dc, is_open_notify },
         }
     }
 

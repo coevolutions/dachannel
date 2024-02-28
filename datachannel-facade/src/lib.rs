@@ -260,7 +260,10 @@ impl PeerConnection {
     ///
     /// In the first two cases, the event handler should transmit the candidate to the remote peer over the signaling
     /// channel so the remote peer can add it to its set of remote candidates.
-    pub fn set_on_ice_candidate(&mut self, cb: Option<impl Fn(Option<&str>) + 'static>) {
+    pub fn set_on_ice_candidate(
+        &mut self,
+        cb: Option<impl Fn(Option<&str>) + Send + Sync + 'static>,
+    ) {
         self.inner.set_on_ice_candidate(cb)
     }
 
@@ -273,7 +276,7 @@ impl PeerConnection {
     /// complete, all of the transports that make up the RTCPeerConnection have finished gathering ICE candidates.
     pub fn set_on_ice_gathering_state_change(
         &mut self,
-        cb: Option<impl Fn(IceGatheringState) + 'static>,
+        cb: Option<impl Fn(IceGatheringState) + Send + Sync + 'static>,
     ) {
         self.inner.set_on_ice_gathering_state_change(cb)
     }
@@ -284,14 +287,17 @@ impl PeerConnection {
     /// disconnected, failed, or closed.
     pub fn set_on_connection_state_change(
         &mut self,
-        cb: Option<impl Fn(PeerConnectionState) + 'static>,
+        cb: Option<impl Fn(PeerConnectionState) + Send + Sync + 'static>,
     ) {
         self.inner.set_on_connection_state_change(cb)
     }
 
     /// A datachannel event is sent to an RTCPeerConnection instance when an RTCDataChannel has been added to the
     /// connection, as a result of the remote peer calling RTCPeerConnection.createDataChannel().
-    pub fn set_on_data_channel(&mut self, cb: Option<impl Fn(DataChannel) + 'static>) {
+    pub fn set_on_data_channel(
+        &mut self,
+        cb: Option<impl Fn(DataChannel) + Send + Sync + 'static>,
+    ) {
         self.inner
             .set_on_data_channel(cb.map(|cb| move |dc| cb(DataChannel { inner: dc })))
     }
@@ -324,33 +330,33 @@ pub struct DataChannel {
 impl DataChannel {
     /// The WebRTC open event is sent to an RTCDataChannel object's onopen event handler when the underlying transport
     /// used to send and receive the data channel's messages is opened or reopened.
-    pub fn set_on_open(&mut self, cb: Option<impl Fn() + 'static>) {
+    pub fn set_on_open(&mut self, cb: Option<impl Fn() + Send + Sync + 'static>) {
         self.inner.set_on_open(cb)
     }
 
     /// The close event is sent to the onclose event handler on an RTCDataChannel instance when the data transport for
     /// the data channel has closed. Before any further data can be transferred using RTCDataChannel, a new
     /// 'RTCDataChannel' instance must be created.
-    pub fn set_on_close(&mut self, cb: Option<impl Fn() + 'static>) {
+    pub fn set_on_close(&mut self, cb: Option<impl Fn() + Send + Sync + 'static>) {
         self.inner.set_on_close(cb)
     }
 
     /// A bufferedamountlow event is sent to an RTCDataChannel when the number of bytes currently in the outbound data
     /// transfer buffer falls below the threshold specified in bufferedAmountLowThreshold. bufferedamountlow events
     /// aren't sent if bufferedAmountLowThreshold is 0.
-    pub fn set_on_buffered_amount_low(&mut self, cb: Option<impl Fn() + 'static>) {
+    pub fn set_on_buffered_amount_low(&mut self, cb: Option<impl Fn() + Send + Sync + 'static>) {
         self.inner.set_on_buffered_amount_low(cb)
     }
 
     /// A WebRTC error event is sent to an RTCDataChannel object's onerror event handler when an error occurs on the
     /// data channel.
-    pub fn set_on_error(&mut self, cb: Option<impl Fn(Error) + 'static>) {
+    pub fn set_on_error(&mut self, cb: Option<impl Fn(Error) + Send + Sync + 'static>) {
         self.inner.set_on_error(cb)
     }
 
     /// The WebRTC message event is sent to the onmessage event handler on an RTCDataChannel object when a message has
     /// been received from the remote peer.
-    pub fn set_on_message(&mut self, cb: Option<impl Fn(&[u8]) + 'static>) {
+    pub fn set_on_message(&mut self, cb: Option<impl Fn(&[u8]) + Send + Sync + 'static>) {
         self.inner.set_on_message(cb)
     }
 

@@ -53,6 +53,9 @@ impl Default for Configuration {
     }
 }
 
+unsafe impl Send for PeerConnection {}
+unsafe impl Sync for PeerConnection {}
+
 impl PeerConnection {
     pub fn new(configuration: Configuration) -> Result<Self, Error> {
         let mut raw = web_sys::RtcConfiguration::new();
@@ -128,7 +131,7 @@ impl PeerConnection {
         })
     }
 
-    pub fn set_on_ice_candidate(&self, cb: Option<impl Fn(Option<&str>) + 'static>) {
+    pub fn set_on_ice_candidate(&self, cb: Option<impl Fn(Option<&str>) + Send + Sync + 'static>) {
         let cb = cb.map(|cb| {
             wasm_bindgen::closure::Closure::<dyn FnMut(_)>::new(
                 move |ev: web_sys::RtcPeerConnectionIceEvent| {
@@ -149,7 +152,7 @@ impl PeerConnection {
 
     pub fn set_on_ice_gathering_state_change(
         &self,
-        cb: Option<impl Fn(IceGatheringState) + 'static>,
+        cb: Option<impl Fn(IceGatheringState) + Send + Sync + 'static>,
     ) {
         let pc = self.pc.clone();
         let cb = cb.map(|cb| {
@@ -166,7 +169,7 @@ impl PeerConnection {
 
     pub fn set_on_connection_state_change(
         &self,
-        cb: Option<impl Fn(PeerConnectionState) + 'static>,
+        cb: Option<impl Fn(PeerConnectionState) + Send + Sync + 'static>,
     ) {
         let pc = self.pc.clone();
         let cb = cb.map(|cb| {
@@ -181,7 +184,7 @@ impl PeerConnection {
         }
     }
 
-    pub fn set_on_data_channel(&self, cb: Option<impl Fn(DataChannel) + 'static>) {
+    pub fn set_on_data_channel(&self, cb: Option<impl Fn(DataChannel) + Send + Sync + 'static>) {
         let cb = cb.map(|cb| {
             wasm_bindgen::closure::Closure::<dyn FnMut(_)>::new(
                 move |ev: web_sys::RtcDataChannelEvent| {
@@ -235,8 +238,11 @@ pub struct DataChannel {
     dc: web_sys::RtcDataChannel,
 }
 
+unsafe impl Send for DataChannel {}
+unsafe impl Sync for DataChannel {}
+
 impl DataChannel {
-    pub fn set_on_open(&self, cb: Option<impl Fn() + 'static>) {
+    pub fn set_on_open(&self, cb: Option<impl Fn() + Send + Sync + 'static>) {
         let cb = cb.map(|cb| {
             wasm_bindgen::closure::Closure::<dyn FnMut(_)>::new(
                 move |_: web_sys::RtcDataChannelEvent| {
@@ -251,7 +257,7 @@ impl DataChannel {
         }
     }
 
-    pub fn set_on_close(&self, cb: Option<impl Fn() + 'static>) {
+    pub fn set_on_close(&self, cb: Option<impl Fn() + Send + Sync + 'static>) {
         let cb = cb.map(|cb| {
             wasm_bindgen::closure::Closure::<dyn FnMut(_)>::new(
                 move |_: web_sys::RtcDataChannelEvent| {
@@ -266,7 +272,7 @@ impl DataChannel {
         }
     }
 
-    pub fn set_on_buffered_amount_low(&self, cb: Option<impl Fn() + 'static>) {
+    pub fn set_on_buffered_amount_low(&self, cb: Option<impl Fn() + Send + Sync + 'static>) {
         let cb = cb.map(|cb| {
             wasm_bindgen::closure::Closure::<dyn FnMut(_)>::new(move |_: web_sys::Event| {
                 cb();
@@ -279,7 +285,7 @@ impl DataChannel {
         }
     }
 
-    pub fn set_on_error(&self, cb: Option<impl Fn(Error) + 'static>) {
+    pub fn set_on_error(&self, cb: Option<impl Fn(Error) + Send + Sync + 'static>) {
         let cb = cb.map(|cb| {
             wasm_bindgen::closure::Closure::<dyn FnMut(_)>::new(move |ev: web_sys::ErrorEvent| {
                 cb(ev.error().into());
@@ -292,7 +298,7 @@ impl DataChannel {
         }
     }
 
-    pub fn set_on_message(&self, cb: Option<impl Fn(&[u8]) + 'static>) {
+    pub fn set_on_message(&self, cb: Option<impl Fn(&[u8]) + Send + Sync + 'static>) {
         let cb = cb.map(|cb| {
             wasm_bindgen::closure::Closure::<dyn FnMut(_)>::new(move |ev: web_sys::MessageEvent| {
                 let arr = match ev.data().dyn_into::<js_sys::ArrayBuffer>() {

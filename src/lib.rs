@@ -1,3 +1,5 @@
+mod sync_util;
+
 pub mod channel;
 pub mod connection;
 

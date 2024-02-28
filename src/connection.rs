@@ -9,15 +9,17 @@ pub use datachannel_facade::SdpType;
 pub struct Connection {
     pc: datachannel_facade::PeerConnection,
     ice_candidates_rx: async_channel::Receiver<Option<String>>,
-    ice_candidates_gathered_rx: async_lock::Mutex<Option<oneshot::Receiver<()>>>,
+    ice_candidates_gathered_notify: std::sync::Arc<crate::sync_util::PermanentNotify>,
     peer_connection_states_rx: async_channel::Receiver<PeerConnectionState>,
     data_channels_rx: async_channel::Receiver<datachannel_facade::DataChannel>,
 }
 
 impl Connection {
     fn wrap(mut pc: datachannel_facade::PeerConnection) -> Self {
+        let ice_candidates_gathered_notify =
+            std::sync::Arc::new(crate::sync_util::PermanentNotify::new());
+
         let (ice_candidates_tx, ice_candidates_rx) = async_channel::unbounded();
-        let (ice_candidates_gathered_tx, ice_candidates_gathered_rx) = oneshot::channel();
         let (peer_connection_states_tx, peer_connection_states_rx) = async_channel::unbounded();
         let (data_channels_tx, data_channels_rx) = async_channel::unbounded();
 
@@ -25,13 +27,11 @@ impl Connection {
             let _ = ice_candidates_tx.try_send(cand.map(|v| v.to_string()));
         }));
         pc.set_on_ice_gathering_state_change(Some({
-            let ice_candidates_gathered_tx =
-                std::cell::RefCell::new(Some(ice_candidates_gathered_tx));
+            let ice_candidates_gathered_notify =
+                std::sync::Arc::clone(&ice_candidates_gathered_notify);
             move |state: IceGatheringState| {
                 if state == IceGatheringState::Complete {
-                    if let Some(ice_candidates_gathered_tx) = ice_candidates_gathered_tx.take() {
-                        let _ = ice_candidates_gathered_tx.send(());
-                    }
+                    ice_candidates_gathered_notify.notify();
                 }
             }
         }));
@@ -45,7 +45,7 @@ impl Connection {
         Self {
             pc,
             ice_candidates_rx,
-            ice_candidates_gathered_rx: async_lock::Mutex::new(Some(ice_candidates_gathered_rx)),
+            ice_candidates_gathered_notify,
             peer_connection_states_rx,
             data_channels_rx,
         }
@@ -60,11 +60,7 @@ impl Connection {
     }
 
     pub async fn ice_candidates_gathered(&self) {
-        if let Some(ice_candidates_gathered_rx) =
-            self.ice_candidates_gathered_rx.lock().await.take()
-        {
-            let _ = ice_candidates_gathered_rx.await;
-        }
+        self.ice_candidates_gathered_notify.notified().await;
     }
 
     pub async fn next_connection_state(&self) -> Option<PeerConnectionState> {

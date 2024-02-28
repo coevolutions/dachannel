@@ -142,13 +142,16 @@ impl PeerConnection {
         Ok(())
     }
 
-    pub fn set_on_ice_candidate(&mut self, cb: Option<impl Fn(Option<&str>) + 'static>) {
+    pub fn set_on_ice_candidate(
+        &mut self,
+        cb: Option<impl Fn(Option<&str>) + Send + Sync + 'static>,
+    ) {
         self.inner.set_on_ice_candidate(cb);
     }
 
     pub fn set_on_ice_gathering_state_change(
         &mut self,
-        cb: Option<impl Fn(crate::IceGatheringState) + 'static>,
+        cb: Option<impl Fn(crate::IceGatheringState) + Send + Sync + 'static>,
     ) {
         self.inner.set_on_ice_gathering_state_change(
             cb.map(|cb| move |state: web_datachannel::IceGatheringState| cb(state.into())),
@@ -157,14 +160,17 @@ impl PeerConnection {
 
     pub fn set_on_connection_state_change(
         &mut self,
-        cb: Option<impl Fn(crate::PeerConnectionState) + 'static>,
+        cb: Option<impl Fn(crate::PeerConnectionState) + Send + Sync + 'static>,
     ) {
         self.inner.set_on_connection_state_change(
             cb.map(|cb| move |state: web_datachannel::PeerConnectionState| cb(state.into())),
         );
     }
 
-    pub fn set_on_data_channel(&mut self, cb: Option<impl Fn(DataChannel) + 'static>) {
+    pub fn set_on_data_channel(
+        &mut self,
+        cb: Option<impl Fn(DataChannel) + Send + Sync + 'static>,
+    ) {
         self.inner.set_on_data_channel(
             cb.map(|cb| move |dc: web_datachannel::DataChannel| cb(DataChannel { inner: dc })),
         );
@@ -196,24 +202,24 @@ pub struct DataChannel {
 }
 
 impl DataChannel {
-    pub fn set_on_open(&mut self, cb: Option<impl Fn() + 'static>) {
+    pub fn set_on_open(&mut self, cb: Option<impl Fn() + Send + Sync + 'static>) {
         self.inner.set_on_open(cb);
     }
 
-    pub fn set_on_close(&mut self, cb: Option<impl Fn() + 'static>) {
+    pub fn set_on_close(&mut self, cb: Option<impl Fn() + Send + Sync + 'static>) {
         self.inner.set_on_close(cb);
     }
 
-    pub fn set_on_buffered_amount_low(&mut self, cb: Option<impl Fn() + 'static>) {
+    pub fn set_on_buffered_amount_low(&mut self, cb: Option<impl Fn() + Send + Sync + 'static>) {
         self.inner.set_on_buffered_amount_low(cb);
     }
 
-    pub fn set_on_error(&mut self, cb: Option<impl Fn(crate::Error) + 'static>) {
+    pub fn set_on_error(&mut self, cb: Option<impl Fn(crate::Error) + Send + Sync + 'static>) {
         self.inner
             .set_on_error(cb.map(|cb| move |err: web_datachannel::Error| cb(err.into())));
     }
 
-    pub fn set_on_message(&mut self, cb: Option<impl Fn(&[u8]) + 'static>) {
+    pub fn set_on_message(&mut self, cb: Option<impl Fn(&[u8]) + Send + Sync + 'static>) {
         self.inner.set_on_message(cb);
     }
 

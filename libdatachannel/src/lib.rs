@@ -174,6 +174,9 @@ fn init_logger() {
     });
 }
 
+unsafe impl Send for PeerConnection {}
+unsafe impl Sync for PeerConnection {}
+
 impl PeerConnection {
     pub fn new(mut config: Configuration) -> Result<Self, Error> {
         init_logger();
@@ -461,23 +464,32 @@ impl PeerConnection {
         Ok(DataChannel::from_raw(id))
     }
 
-    pub fn set_on_local_description(&mut self, cb: Option<impl Fn(&str, SdpType) + 'static>) {
+    pub fn set_on_local_description(
+        &mut self,
+        cb: Option<impl Fn(&str, SdpType) + Send + Sync + 'static>,
+    ) {
         self.userdata.on_local_description = cb.map(|f| Box::new(f) as _);
     }
 
-    pub fn set_on_local_candidate(&mut self, cb: Option<impl Fn(&str) + 'static>) {
+    pub fn set_on_local_candidate(&mut self, cb: Option<impl Fn(&str) + Send + Sync + 'static>) {
         self.userdata.on_local_candidate = cb.map(|f| Box::new(f) as _);
     }
 
-    pub fn set_on_state_change(&mut self, cb: Option<impl Fn(State) + 'static>) {
+    pub fn set_on_state_change(&mut self, cb: Option<impl Fn(State) + Send + Sync + 'static>) {
         self.userdata.on_state_change = cb.map(|f| Box::new(f) as _);
     }
 
-    pub fn set_on_gathering_state_change(&mut self, cb: Option<impl Fn(GatheringState) + 'static>) {
+    pub fn set_on_gathering_state_change(
+        &mut self,
+        cb: Option<impl Fn(GatheringState) + Send + Sync + 'static>,
+    ) {
         self.userdata.on_gathering_state_change = cb.map(|f| Box::new(f) as _);
     }
 
-    pub fn set_on_data_channel(&mut self, cb: Option<impl Fn(DataChannel) + 'static>) {
+    pub fn set_on_data_channel(
+        &mut self,
+        cb: Option<impl Fn(DataChannel) + Send + Sync + 'static>,
+    ) {
         self.userdata.on_data_channel = cb.map(|f| Box::new(f) as _);
     }
 }
@@ -504,6 +516,9 @@ struct DataChannelUserData {
     on_buffered_amount_low: Option<Box<dyn Fn()>>,
     on_available: Option<Box<dyn Fn()>>,
 }
+
+unsafe impl Send for DataChannel {}
+unsafe impl Sync for DataChannel {}
 
 impl DataChannel {
     fn from_raw(id: i32) -> Self {
@@ -627,23 +642,23 @@ impl DataChannel {
         Ok(check_error(unsafe { libdatachannel_sys::rtcGetAvailableAmount(self.id) })? as usize)
     }
 
-    pub fn set_on_open(&mut self, cb: Option<impl Fn() + 'static>) {
+    pub fn set_on_open(&mut self, cb: Option<impl Fn() + Send + Sync + 'static>) {
         self.userdata.on_open = cb.map(|f| Box::new(f) as _);
     }
 
-    pub fn set_on_closed(&mut self, cb: Option<impl Fn() + 'static>) {
+    pub fn set_on_closed(&mut self, cb: Option<impl Fn() + Send + Sync + 'static>) {
         self.userdata.on_closed = cb.map(|f| Box::new(f) as _);
     }
 
-    pub fn set_on_buffered_amount_low(&mut self, cb: Option<impl Fn() + 'static>) {
+    pub fn set_on_buffered_amount_low(&mut self, cb: Option<impl Fn() + Send + Sync + 'static>) {
         self.userdata.on_buffered_amount_low = cb.map(|f| Box::new(f) as _);
     }
 
-    pub fn set_on_error(&mut self, cb: Option<impl Fn(&str) + 'static>) {
+    pub fn set_on_error(&mut self, cb: Option<impl Fn(&str) + Send + Sync + 'static>) {
         self.userdata.on_error = cb.map(|f| Box::new(f) as _);
     }
 
-    pub fn set_on_message(&mut self, cb: Option<impl Fn(&[u8]) + 'static>) {
+    pub fn set_on_message(&mut self, cb: Option<impl Fn(&[u8]) + Send + Sync + 'static>) {
         self.userdata.on_message = cb.map(|f| Box::new(f) as _);
     }
 }

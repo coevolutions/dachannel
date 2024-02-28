@@ -185,9 +185,12 @@ version = "0.1.0"
 dependencies = [
  "async-channel",
  "async-lock",
+ "cfg-if",
  "datachannel-facade",
  "oneshot",
+ "pollster",
  "thiserror",
+ "wasm-bindgen-test",
 ]
 
 [[package]]

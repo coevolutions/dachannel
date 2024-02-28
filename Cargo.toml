@@ -12,7 +12,7 @@ repository = "https://github.com/coevolutions/dachannel"
 [dependencies]
 async-channel = "2"
 async-lock = "3"
-datachannel-facade = { path = "datachannel-facade" }
+datachannel-facade = { version = "0.1", path = "datachannel-facade" }
 event-listener = "5"
 log = "0.4"
 thiserror = "1"

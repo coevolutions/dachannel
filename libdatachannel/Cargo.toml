@@ -8,7 +8,7 @@ repository = "https://github.com/coevolutions/dachannel"
 
 [dependencies]
 log = "0.4"
-libdatachannel-sys = { path = "./libdatachannel-sys" }
+libdatachannel-sys = { version = "0.20", path = "./libdatachannel-sys" }
 num-derive = "0.4"
 num-traits = "0.2"
 thiserror = "1"

@@ -30,7 +30,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         std::io::stdout().flush()?;
 
         let mut line = String::new();
-        stdin.lock().read_line(&mut line)?;
+        if stdin.lock().read_line(&mut line)? == 0 {
+            break;
+        }
 
         dc.send(line.as_bytes()).await?;
         println!(
@@ -38,4 +40,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             String::from_utf8_lossy(&dc.recv().await.unwrap())
         );
     }
+
+    Ok(())
 }

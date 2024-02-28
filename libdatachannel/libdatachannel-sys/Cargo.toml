@@ -1,5 +1,6 @@
 [package]
 name = "libdatachannel-sys"
+description = "Bindings to libdatachannel's C API"
 version = "0.20.1"
 edition = "2021"
 license = "MIT"

@@ -1,5 +1,6 @@
 [package]
 name = "web-datachannel"
+description = "Rust wrapper for WASM WebRTC"
 version = "0.0.0"
 edition = "2021"
 license = "MIT"

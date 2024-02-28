@@ -20,6 +20,8 @@ web-datachannel --web--> datachannel-facade
 libdatachannel-sys --> libdatachannel;
 libdatachannel --native--> datachannel-facade;
 datachannel-facade --> dachannel;
+dachannel --web/native--> dachannel-client;
+dachannel --native--> dachannel-server;
 ```
 
 Each level of the stack is usable independently. If you want an unopinionated platform-independent wrapper, you can use `datachannel-facade`. If you just need a Rust wrapper of libdatachannel, you can use `libdatachannel`.

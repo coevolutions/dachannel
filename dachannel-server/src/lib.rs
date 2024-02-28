@@ -19,6 +19,9 @@ pub enum Error {
     Closed,
 }
 
+/// A Future that is an in-progress connection attempt from a remote client.
+///
+/// This Future may be awaited on to complete the connection, or dropped to abort it.
 pub struct Connecting {
     parts: axum::http::request::Parts,
     remote_addr: std::net::SocketAddr,
@@ -28,10 +31,12 @@ pub struct Connecting {
 }
 
 impl Connecting {
+    /// The new connection. Any DataChannels can be configured here before completing the future.
     pub fn connection(&self) -> &dachannel::Connection {
         &self.connection
     }
 
+    /// The HTTP Authorization header, if any.
     pub fn authorization(&self) -> Option<&str> {
         self.parts
             .headers
@@ -40,6 +45,7 @@ impl Connecting {
             .flatten()
     }
 
+    /// The remote address connecting to the HTTP server. This may or may not be the remote address of the DataChannel.
     pub fn remote_addr(&self) -> &std::net::SocketAddr {
         &self.remote_addr
     }
@@ -125,6 +131,7 @@ struct AppState {
     connecting_tx: async_channel::Sender<Connecting>,
 }
 
+/// Start the server on a listener.
 pub async fn serve(
     listener: tokio::net::TcpListener,
     backlog: usize,

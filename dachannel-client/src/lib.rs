@@ -10,6 +10,7 @@ pub enum Error {
     MalformedBody,
 }
 
+/// Connect to a dachannel server.
 pub async fn connect(
     url: &str,
     authorization: Option<String>,

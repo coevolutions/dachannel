@@ -1,8 +1,8 @@
 use std::future::IntoFuture;
 
+use axum::body::HttpBody as _;
 use datachannel_facade::platform::native::ConfigurationExt as _;
 use http_body_util::BodyExt as _;
-use hyper::body::Body as _;
 
 struct ConnectingInner {
     connection: crate::Connection,
@@ -11,7 +11,7 @@ struct ConnectingInner {
 }
 
 pub struct Connecting {
-    parts: hyper::http::request::Parts,
+    parts: axum::http::request::Parts,
     remote_addr: std::net::SocketAddr,
     inner: Option<ConnectingInner>,
 }
@@ -21,7 +21,7 @@ impl Connecting {
         &self.inner.as_ref().unwrap().connection
     }
 
-    pub fn parts(&self) -> &hyper::HeaderMap {
+    pub fn headers(&self) -> &axum::http::HeaderMap {
         &self.parts.headers
     }
 
@@ -49,8 +49,16 @@ impl Connecting {
             .await?;
         inner.connection.ice_candidates_gathered().await;
 
-        // TODO: Remove this unwrap?
-        let answer_sdp = inner.connection.local_description()?.unwrap().sdp;
+        let answer_sdp = inner
+            .connection
+            .local_description()?
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::ConnectionRefused,
+                    "local description not populated",
+                )
+            })?
+            .sdp;
         let _ = inner.answer_sdp_tx.send(Some(answer_sdp));
 
         Ok(inner.connection)
@@ -79,11 +87,13 @@ async fn offer(
         state.bind_addr.port(),
     );
 
-    let conn = crate::Connection::new(config)
-        .map_err(|_e| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    let conn = crate::Connection::new(config).map_err(|e| {
+        log::error!("failed to create connection: {e}");
+        axum::http::StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     if body.size_hint().upper().unwrap_or(u64::MAX) > 8 * 1024 {
-        return Err(hyper::StatusCode::PAYLOAD_TOO_LARGE);
+        return Err(axum::http::StatusCode::PAYLOAD_TOO_LARGE);
     }
 
     let (answer_sdp_tx, answer_sdp_rx) = tokio::sync::oneshot::channel();
@@ -99,16 +109,12 @@ async fn offer(
             parts,
         })
         .await
-        .map_err(|_e| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|_e| axum::http::StatusCode::SERVICE_UNAVAILABLE)?;
 
-    let answer_sdp = if let Some(answer_sdp) = answer_sdp_rx
+    let answer_sdp = answer_sdp_rx
         .await
-        .map_err(|_e| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?
-    {
-        answer_sdp
-    } else {
-        return Err(hyper::StatusCode::FORBIDDEN);
-    };
+        .map_err(|_e| axum::http::StatusCode::SERVICE_UNAVAILABLE)?
+        .ok_or_else(|| axum::http::StatusCode::FORBIDDEN)?;
 
     Ok(answer_sdp)
 }
@@ -142,6 +148,8 @@ pub async fn listen(
                 }))
                 .layer(
                     tower_http::cors::CorsLayer::new()
+                        .allow_credentials(true)
+                        .allow_headers([axum::http::header::AUTHORIZATION])
                         .allow_methods([axum::http::Method::POST])
                         .allow_origin(tower_http::cors::Any),
                 )

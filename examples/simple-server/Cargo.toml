@@ -4,7 +4,6 @@ version = "0.0.0"
 edition = "2021"
 
 [dependencies]
-axum = "0.7"
 clap = { version = "4", features = ["derive"] }
 dachannel = { path = "../..", features = ["server"] }
 tokio = { version = "1", features = ["full"] }

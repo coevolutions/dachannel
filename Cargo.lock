@@ -414,7 +414,6 @@ dependencies = [
  "datachannel-facade",
  "event-listener 5.1.0",
  "http-body-util",
- "hyper 1.2.0",
  "hyper-util",
  "log",
  "pollster",
@@ -1495,7 +1494,6 @@ dependencies = [
 name = "simple-server"
 version = "0.0.0"
 dependencies = [
- "axum",
  "clap",
  "dachannel",
  "tokio",

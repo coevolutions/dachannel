@@ -1495,6 +1495,7 @@ dependencies = [
 name = "simple-server"
 version = "0.0.0"
 dependencies = [
+ "axum",
  "clap",
  "dachannel",
  "tokio",

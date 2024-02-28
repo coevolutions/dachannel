@@ -1,10 +1,8 @@
+use std::future::IntoFuture;
+
 use datachannel_facade::platform::native::ConfigurationExt as _;
 use http_body_util::BodyExt as _;
 use hyper::body::Body as _;
-
-pub struct Server {
-    connecting_rx: async_channel::Receiver<Connecting>,
-}
 
 struct ConnectingInner {
     connection: crate::Connection,
@@ -13,7 +11,8 @@ struct ConnectingInner {
 }
 
 pub struct Connecting {
-    headers: hyper::HeaderMap,
+    parts: hyper::http::request::Parts,
+    remote_addr: std::net::SocketAddr,
     inner: Option<ConnectingInner>,
 }
 
@@ -22,8 +21,12 @@ impl Connecting {
         &self.inner.as_ref().unwrap().connection
     }
 
-    pub fn headers(&self) -> &hyper::HeaderMap {
-        &self.headers
+    pub fn parts(&self) -> &hyper::HeaderMap {
+        &self.parts.headers
+    }
+
+    pub fn remote_addr(&self) -> &std::net::SocketAddr {
+        &self.remote_addr
     }
 
     pub async fn finish(
@@ -64,6 +67,7 @@ impl Drop for Connecting {
 
 async fn offer(
     axum::extract::State(state): axum::extract::State<std::sync::Arc<AppState>>,
+    axum::extract::ConnectInfo(remote_addr): axum::extract::ConnectInfo<std::net::SocketAddr>,
     req: axum::extract::Request,
 ) -> Result<String, axum::http::StatusCode> {
     let (parts, body) = req.into_parts();
@@ -91,7 +95,8 @@ async fn offer(
                 body,
                 answer_sdp_tx,
             }),
-            headers: parts.headers,
+            remote_addr,
+            parts,
         })
         .await
         .map_err(|_e| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -113,36 +118,36 @@ struct AppState {
     connecting_tx: async_channel::Sender<Connecting>,
 }
 
-impl Server {
-    pub async fn listen(
-        listener: tokio::net::TcpListener,
-        backlog: usize,
-    ) -> Result<Self, std::io::Error> {
-        let bind_addr = listener.local_addr()?;
+pub async fn listen(
+    listener: tokio::net::TcpListener,
+    backlog: usize,
+) -> Result<
+    (
+        impl std::future::Future<Output = Result<(), std::io::Error>>,
+        async_channel::Receiver<Connecting>,
+    ),
+    std::io::Error,
+> {
+    let (connecting_tx, connecting_rx) = async_channel::bounded(backlog);
+    let bind_addr = listener.local_addr()?;
 
-        let (connecting_tx, connecting_rx) = async_channel::bounded(backlog);
-
-        let app = axum::Router::new()
-            .route("/", axum::routing::post(offer))
-            .layer(
-                tower_http::cors::CorsLayer::new()
-                    .allow_methods([axum::http::Method::POST])
-                    .allow_origin(tower_http::cors::Any),
-            )
-            .with_state(std::sync::Arc::new(AppState {
-                bind_addr,
-                connecting_tx: connecting_tx.clone(),
-            }));
-
-        tokio::task::spawn(async move {
-            let _ = axum::serve(listener, app).await;
-            connecting_tx.close();
-        });
-
-        Ok(Self { connecting_rx })
-    }
-
-    pub async fn accept(&self) -> Option<Connecting> {
-        self.connecting_rx.recv().await.ok()
-    }
+    Ok((
+        axum::serve(
+            listener,
+            axum::Router::new()
+                .route("/", axum::routing::post(offer))
+                .with_state(std::sync::Arc::new(AppState {
+                    bind_addr,
+                    connecting_tx: connecting_tx.clone(),
+                }))
+                .layer(
+                    tower_http::cors::CorsLayer::new()
+                        .allow_methods([axum::http::Method::POST])
+                        .allow_origin(tower_http::cors::Any),
+                )
+                .into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .into_future(),
+        connecting_rx,
+    ))
 }

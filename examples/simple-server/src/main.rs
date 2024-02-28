@@ -11,12 +11,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let args = Args::parse();
 
     let listener = tokio::net::TcpListener::bind(args.listen_addr).await?;
-    println!("listening on: {}", listener.local_addr()?);
+    let local_addr = listener.local_addr()?;
+    println!("listening on: {}", local_addr);
 
-    let server = dachannel::server::Server::listen(listener, 128).await?;
+    let (serve_fut, connecting_rx) = dachannel::server::listen(listener, 128).await?;
 
-    while let Some(connecting) = server.accept().await {
-        println!("got connection");
+    tokio::spawn(async move {
+        serve_fut.await.unwrap();
+    });
+
+    while let Some(connecting) = connecting_rx.recv().await.ok() {
+        println!("got connection from {}", connecting.remote_addr());
 
         let dc = connecting.connection().create_data_channel(
             "test",

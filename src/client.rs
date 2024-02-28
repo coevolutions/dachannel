@@ -30,14 +30,19 @@ pub async fn connect(
 mod test {
     use super::*;
 
+    #[cfg(feature = "server")]
     #[tokio::test]
     pub async fn test_connect() {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let local_addr = listener.local_addr().unwrap();
 
-        let server = crate::server::Server::listen(listener, 128).await.unwrap();
+        let (serve_fut, connecting_rx) = crate::server::listen(listener, 128).await.unwrap();
 
-        let jh = tokio::spawn(async move {
+        tokio::spawn(async move {
+            serve_fut.await.unwrap();
+        });
+
+        let client_jh = tokio::spawn(async move {
             let config: crate::Configuration = Default::default();
             let conn = crate::Connection::new(config).unwrap();
             let dc = conn
@@ -62,7 +67,7 @@ mod test {
             dc.send(b"hello world").await.unwrap();
         });
 
-        let connecting = server.accept().await.unwrap();
+        let connecting = connecting_rx.recv().await.unwrap();
         let dc = connecting
             .connection()
             .create_data_channel(
@@ -78,6 +83,6 @@ mod test {
         let _conn = connecting.finish().await.unwrap();
         assert_eq!(dc.recv().await.unwrap(), b"hello world");
 
-        jh.await.unwrap();
+        client_jh.await.unwrap();
     }
 }

@@ -72,4 +72,37 @@ mod test {
         chan2.send(b"goodbye world!").await.unwrap();
         assert_eq!(chan1.recv().await.unwrap(), b"goodbye world!");
     }
+
+    #[cfg_attr(not(target_arch = "wasm32"), pollster::test)]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+    pub async fn test_connection_communicate_nonnegotiated() {
+        let conn1 = Connection::new(Default::default()).unwrap();
+        let chan1 = conn1
+            .create_data_channel("test", Default::default())
+            .unwrap();
+        conn1.set_local_description(SdpType::Offer).await.unwrap();
+        conn1.ice_candidates_gathered().await;
+
+        let conn2 = Connection::new(Default::default()).unwrap();
+        conn2
+            .set_remote_description(&conn1.local_description().unwrap().unwrap())
+            .await
+            .unwrap();
+
+        conn2.set_local_description(SdpType::Answer).await.unwrap();
+        conn2.ice_candidates_gathered().await;
+
+        conn1
+            .set_remote_description(&conn2.local_description().unwrap().unwrap())
+            .await
+            .unwrap();
+
+        let chan2 = conn2.accept_channel().await.unwrap();
+
+        // chan1.send(b"hello world!").await.unwrap();
+        // assert_eq!(chan2.recv().await.unwrap(), b"hello world!");
+
+        chan2.send(b"goodbye world!").await.unwrap();
+        assert_eq!(chan1.recv().await.unwrap(), b"goodbye world!");
+    }
 }

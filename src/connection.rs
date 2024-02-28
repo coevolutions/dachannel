@@ -74,6 +74,7 @@ impl Connection {
     pub async fn accept_channel(&self) -> Option<crate::Channel> {
         Some(super::Channel::wrap(
             self.data_channels_rx.recv().await.ok()?,
+            true,
         ))
     }
 
@@ -88,6 +89,7 @@ impl Connection {
     ) -> Result<crate::Channel, Error> {
         Ok(crate::Channel::wrap(
             self.pc.create_data_channel(label, options)?,
+            false,
         ))
     }
 

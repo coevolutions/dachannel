@@ -47,12 +47,13 @@ pub struct Channel {
 }
 
 impl Channel {
-    pub(crate) fn wrap(mut dc: datachannel_facade::DataChannel) -> Channel {
+    pub(crate) fn wrap(mut dc: datachannel_facade::DataChannel, is_open: bool) -> Channel {
         let (is_open_tx, is_open_rx) = oneshot::channel();
         let (tx, rx) = async_channel::unbounded();
 
         dc.set_on_open(Some({
-            let is_open_tx = std::cell::RefCell::new(Some(is_open_tx));
+            let is_open_tx =
+                std::cell::RefCell::new(if !is_open { Some(is_open_tx) } else { None });
             move || {
                 if let Some(is_open_tx) = is_open_tx.take() {
                     let _ = is_open_tx.send(());

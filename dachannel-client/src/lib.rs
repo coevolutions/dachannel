@@ -20,7 +20,6 @@ pub async fn connect(
 
     conn.set_local_description(dachannel::SdpType::Offer)
         .await?;
-    conn.ice_candidates_gathered().await;
     let offer_sdp = conn.local_description()?.unwrap().sdp;
 
     let client = reqwest::Client::new();

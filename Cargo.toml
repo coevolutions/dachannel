@@ -8,3 +8,5 @@ edition = "2021"
 license = "MIT"
 
 [dependencies]
+async-channel = "2"
+datachannel-facade = { path = "datachannel-facade" }

@@ -316,6 +316,10 @@ impl DataChannel {
         self.dc.set_buffered_amount_low_threshold(value);
     }
 
+    pub fn buffered_amount(&self) -> u32 {
+        self.dc.buffered_amount()
+    }
+
     pub fn close(&self) {
         self.dc.close();
     }

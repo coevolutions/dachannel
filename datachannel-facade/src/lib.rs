@@ -367,6 +367,18 @@ impl DataChannel {
         self.inner.set_buffered_amount_low_threshold(value)
     }
 
+    /// The read-only RTCDataChannel property bufferedAmount returns the number of bytes of data currently queued to be
+    /// sent over the data channel. The queue may build up as a result of calls to the send() method. This only includes
+    /// data buffered by the user agent itself; it doesn't include any framing overhead or buffering done by the
+    /// operating system or network hardware.
+    ///
+    /// The user agent may implement the process of actually sending data in any way it chooses; this may be done
+    /// periodically during the event loop or truly asynchronously. As messages are actually sent, this value is reduced
+    /// accordingly.
+    pub fn buffered_amount(&self) -> Result<u32, crate::Error> {
+        self.inner.buffered_amount()
+    }
+
     /// The RTCDataChannel.close() method closes the RTCDataChannel. Either peer is permitted to call this method to
     /// initiate closure of the channel.
     ///

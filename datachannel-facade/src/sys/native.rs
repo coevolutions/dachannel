@@ -251,6 +251,10 @@ impl DataChannel {
         Ok(())
     }
 
+    pub fn buffered_amount(&self) -> Result<u32, crate::Error> {
+        Ok(self.inner.buffered_amount()? as u32)
+    }
+
     pub fn close(&self) -> Result<(), crate::Error> {
         self.inner.close()?;
         Ok(())

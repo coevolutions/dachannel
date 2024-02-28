@@ -6,7 +6,7 @@ use http_body_util::BodyExt as _;
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("dachannel: {0}")]
-    Dachannel(#[from] crate::Error),
+    Dachannel(#[from] dachannel::Error),
 
     #[error("axum: {0}")]
     Axum(#[from] axum::Error),
@@ -21,13 +21,13 @@ pub enum Error {
 pub struct Connecting {
     parts: axum::http::request::Parts,
     remote_addr: std::net::SocketAddr,
-    connection: crate::Connection,
+    connection: dachannel::Connection,
     body: axum::body::Body,
     answer_sdp_tx: tokio::sync::oneshot::Sender<String>,
 }
 
 impl Connecting {
-    pub fn connection(&self) -> &crate::Connection {
+    pub fn connection(&self) -> &dachannel::Connection {
         &self.connection
     }
 
@@ -45,7 +45,7 @@ impl Connecting {
 }
 
 impl std::future::IntoFuture for Connecting {
-    type Output = Result<crate::Connection, Error>;
+    type Output = Result<dachannel::Connection, Error>;
     type IntoFuture = std::pin::Pin<Box<dyn std::future::Future<Output = Self::Output> + Send>>;
 
     fn into_future(self) -> Self::IntoFuture {
@@ -54,13 +54,13 @@ impl std::future::IntoFuture for Connecting {
                 .map_err(|_| Error::MalformedBody)?;
 
             self.connection
-                .set_remote_description(&crate::Description {
-                    type_: crate::SdpType::Offer,
+                .set_remote_description(&dachannel::Description {
+                    type_: dachannel::SdpType::Offer,
                     sdp: offer_sdp,
                 })
                 .await?;
             self.connection
-                .set_local_description(crate::SdpType::Answer)
+                .set_local_description(dachannel::SdpType::Answer)
                 .await?;
             self.connection.ice_candidates_gathered().await;
 
@@ -86,14 +86,14 @@ async fn offer(
 ) -> Result<String, axum::http::StatusCode> {
     let (parts, body) = req.into_parts();
 
-    let mut config: crate::Configuration = Default::default();
+    let mut config: dachannel::Configuration = Default::default();
     config.set_bind(
         state.bind_addr.ip(),
         state.bind_addr.port(),
         state.bind_addr.port(),
     );
 
-    let connection = crate::Connection::new(config).map_err(|e| {
+    let connection = dachannel::Connection::new(config).map_err(|e| {
         log::error!("failed to create connection: {e}");
         axum::http::StatusCode::INTERNAL_SERVER_ERROR
     })?;

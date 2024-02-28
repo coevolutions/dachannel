@@ -1,0 +1,13 @@
+[package]
+name = "dachannel-client"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+dachannel = { path = ".." }
+reqwest = "0.11"
+thiserror = "1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+dachannel-server = { path = "../dachannel-server" }
+tokio = { version = "1", features = ["full"] }

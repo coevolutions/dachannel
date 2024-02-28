@@ -1,7 +1,7 @@
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("dachannel: {0}")]
-    Dachannel(#[from] crate::Error),
+    Dachannel(#[from] dachannel::Error),
 
     #[error("reqwest: {0}")]
     Reqwest(#[from] reqwest::Error),
@@ -13,9 +13,10 @@ pub enum Error {
 pub async fn connect(
     url: &str,
     authorization: Option<String>,
-    conn: &crate::Connection,
+    conn: &dachannel::Connection,
 ) -> Result<(), Error> {
-    conn.set_local_description(crate::SdpType::Offer).await?;
+    conn.set_local_description(dachannel::SdpType::Offer)
+        .await?;
     conn.ice_candidates_gathered().await;
     let offer_sdp = conn.local_description()?.unwrap().sdp;
 
@@ -28,8 +29,8 @@ pub async fn connect(
     let answer_sdp =
         String::from_utf8(res.bytes().await?.to_vec()).map_err(|_| Error::MalformedBody)?;
 
-    conn.set_remote_description(&crate::Description {
-        type_: crate::SdpType::Answer,
+    conn.set_remote_description(&dachannel::Description {
+        type_: dachannel::SdpType::Answer,
         sdp: answer_sdp,
     })
     .await?;
@@ -41,25 +42,25 @@ pub async fn connect(
 mod test {
     use super::*;
 
-    #[cfg(feature = "server")]
+    #[cfg(not(target_arch = "wasm32"))]
     #[tokio::test]
     pub async fn test_connect() {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let local_addr = listener.local_addr().unwrap();
 
-        let (serve_fut, connecting_rx) = crate::server::serve(listener, 128).await;
+        let (serve_fut, connecting_rx) = dachannel_server::serve(listener, 128).await;
 
         tokio::spawn(async move {
             serve_fut.await.unwrap();
         });
 
         let client_jh = tokio::spawn(async move {
-            let config: crate::Configuration = Default::default();
-            let conn = crate::Connection::new(config).unwrap();
+            let config: dachannel::Configuration = Default::default();
+            let conn = dachannel::Connection::new(config).unwrap();
             let dc = conn
                 .create_data_channel(
                     "test",
-                    datachannel_facade::DataChannelOptions {
+                    dachannel::DataChannelOptions {
                         negotiated: true,
                         id: Some(1),
                         ..Default::default()
@@ -83,7 +84,7 @@ mod test {
             .connection()
             .create_data_channel(
                 "test",
-                datachannel_facade::DataChannelOptions {
+                dachannel::DataChannelOptions {
                     negotiated: true,
                     id: Some(1),
                     ..Default::default()

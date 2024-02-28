@@ -14,7 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             ..Default::default()
         },
     )?;
-    dachannel::client::connect("http://127.0.0.1:12345", None, &conn).await?;
+    dachannel_client::connect("http://127.0.0.1:12345", None, &conn).await?;
     log::info!("got: {:?}", dc.recv().await);
     dc.send(b"hello world!!").await?;
     Ok(())

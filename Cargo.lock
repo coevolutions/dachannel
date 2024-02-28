@@ -409,19 +409,40 @@ version = "0.1.0"
 dependencies = [
  "async-channel",
  "async-lock",
- "axum",
  "cfg-if",
  "datachannel-facade",
  "event-listener 5.1.0",
- "http-body-util",
- "hyper-util",
  "log",
  "pollster",
+ "thiserror",
+ "wasm-bindgen-test",
+]
+
+[[package]]
+name = "dachannel-client"
+version = "0.0.0"
+dependencies = [
+ "dachannel",
+ "dachannel-server",
  "reqwest",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "dachannel-server"
+version = "0.0.0"
+dependencies = [
+ "async-channel",
+ "axum",
+ "dachannel",
+ "datachannel-facade",
+ "http-body-util",
+ "hyper-util",
+ "log",
+ "thiserror",
+ "tokio",
  "tower-http",
- "wasm-bindgen-test",
 ]
 
 [[package]]
@@ -1496,6 +1517,7 @@ version = "0.0.0"
 dependencies = [
  "clap",
  "dachannel",
+ "dachannel-server",
  "tokio",
 ]
 
@@ -1505,6 +1527,7 @@ version = "0.0.0"
 dependencies = [
  "console_error_panic_hook",
  "dachannel",
+ "dachannel-client",
  "log",
  "wasm-bindgen",
  "wasm-bindgen-futures",

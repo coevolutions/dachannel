@@ -8,7 +8,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 console_error_panic_hook = "0.1"
-dachannel = { path = "../..", features = ["client"] }
+dachannel = { path = "../.." }
+dachannel-client = { path = "../../dachannel-client" }
 log = "0.4"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"

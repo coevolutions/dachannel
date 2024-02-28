@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let remote_addr = connecting.remote_addr().clone();
         println!("[{}] connected", remote_addr);
 
-        let dc = connecting.connection_builder().create_data_channel(
+        let dc = connecting.create_data_channel(
             "test",
             dachannel::DataChannelOptions {
                 negotiated: true,

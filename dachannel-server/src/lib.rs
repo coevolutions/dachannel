@@ -30,8 +30,12 @@ pub struct Connecting {
 
 impl Connecting {
     /// The new connection. Any DataChannels can be configured here before completing the future.
-    pub fn connection_builder(&self) -> &dachannel::ConnectionBuilder {
-        &self.connection_builder
+    pub fn create_data_channel(
+        &self,
+        label: &str,
+        options: dachannel::DataChannelOptions,
+    ) -> Result<dachannel::Channel, dachannel::Error> {
+        self.connection_builder.create_data_channel(label, options)
     }
 
     /// The HTTP Authorization header, if any.

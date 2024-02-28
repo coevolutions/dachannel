@@ -97,7 +97,6 @@ mod test {
 
         let connecting = connecting_rx.recv().await.unwrap();
         let dc = connecting
-            .connection_builder()
             .create_data_channel(
                 "test",
                 dachannel::DataChannelOptions {

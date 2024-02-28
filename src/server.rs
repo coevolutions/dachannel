@@ -32,8 +32,12 @@ impl Connecting {
         &self.connection
     }
 
-    pub fn headers(&self) -> &axum::http::HeaderMap {
-        &self.parts.headers
+    pub fn authorization(&self) -> Option<&str> {
+        self.parts
+            .headers
+            .get(axum::http::header::AUTHORIZATION)
+            .map(|v| v.to_str().ok())
+            .flatten()
     }
 
     pub fn remote_addr(&self) -> &std::net::SocketAddr {

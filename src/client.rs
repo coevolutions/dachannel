@@ -1,6 +1,6 @@
 pub async fn connect(
     url: &str,
-    headers: reqwest::header::HeaderMap,
+    authorization: Option<String>,
     conn: &crate::Connection,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     conn.set_local_description(crate::SdpType::Offer).await?;
@@ -8,13 +8,11 @@ pub async fn connect(
     let offer_sdp = conn.local_description()?.unwrap().sdp;
 
     let client = reqwest::Client::new();
-    let res = client
-        .post(url)
-        .headers(headers)
-        .body(offer_sdp)
-        .send()
-        .await?
-        .error_for_status()?;
+    let mut req = client.post(url).body(offer_sdp);
+    if let Some(authorization) = authorization {
+        req = req.header(reqwest::header::AUTHORIZATION, authorization);
+    }
+    let res = req.send().await?.error_for_status()?;
     let answer_sdp = String::from_utf8(res.bytes().await?.to_vec())?;
 
     conn.set_remote_description(&crate::Description {
@@ -58,7 +56,7 @@ mod test {
 
             connect(
                 &format!("http://127.0.0.1:{}", local_addr.port()),
-                Default::default(),
+                None,
                 &conn,
             )
             .await

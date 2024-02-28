@@ -1,8 +1,20 @@
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("dachannel: {0}")]
+    Dachannel(#[from] crate::Error),
+
+    #[error("reqwest: {0}")]
+    Reqwest(#[from] reqwest::Error),
+
+    #[error("malformed body")]
+    MalformedBody,
+}
+
 pub async fn connect(
     url: &str,
     authorization: Option<String>,
     conn: &crate::Connection,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<(), Error> {
     conn.set_local_description(crate::SdpType::Offer).await?;
     conn.ice_candidates_gathered().await;
     let offer_sdp = conn.local_description()?.unwrap().sdp;
@@ -13,7 +25,8 @@ pub async fn connect(
         req = req.header(reqwest::header::AUTHORIZATION, authorization);
     }
     let res = req.send().await?.error_for_status()?;
-    let answer_sdp = String::from_utf8(res.bytes().await?.to_vec())?;
+    let answer_sdp =
+        String::from_utf8(res.bytes().await?.to_vec()).map_err(|_| Error::MalformedBody)?;
 
     conn.set_remote_description(&crate::Description {
         type_: crate::SdpType::Answer,

@@ -10,6 +10,8 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    env_logger::init();
+
     let args = Args::parse();
 
     let config: dachannel::Configuration = Default::default();

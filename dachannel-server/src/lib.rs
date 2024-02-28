@@ -94,6 +94,7 @@ async fn offer(
     let (parts, body) = req.into_parts();
 
     let mut config: dachannel::Configuration = Default::default();
+    config.ice_servers = state.ice_servers.clone();
     config.set_bind(
         state.bind_addr.ip(),
         state.bind_addr.port(),
@@ -126,12 +127,14 @@ async fn offer(
 
 struct AppState {
     bind_addr: std::net::SocketAddr,
+    ice_servers: Vec<dachannel::IceServer>,
     connecting_tx: async_channel::Sender<Connecting>,
 }
 
 /// Start the server on a listener.
 pub async fn serve(
     listener: tokio::net::TcpListener,
+    ice_servers: Vec<dachannel::IceServer>,
     backlog: usize,
 ) -> (
     impl std::future::Future<Output = Result<(), std::io::Error>>,
@@ -147,6 +150,7 @@ pub async fn serve(
                     .route("/", axum::routing::post(offer))
                     .with_state(std::sync::Arc::new(AppState {
                         bind_addr,
+                        ice_servers,
                         connecting_tx: connecting_tx.clone(),
                     }))
                     .layer(

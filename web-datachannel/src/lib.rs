@@ -28,20 +28,20 @@ pub type IceGatheringState = web_sys::RtcIceGatheringState;
 pub type PeerConnectionState = web_sys::RtcPeerConnectionState;
 pub type IceTransportPolicy = web_sys::RtcIceTransportPolicy;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Description {
     pub type_: SdpType,
     pub sdp: String,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct IceServer {
     pub urls: Vec<String>,
     pub username: Option<String>,
     pub credential: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Configuration {
     pub ice_servers: Vec<IceServer>,
     pub ice_transport_policy: IceTransportPolicy,

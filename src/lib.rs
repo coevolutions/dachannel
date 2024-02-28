@@ -7,6 +7,8 @@ pub use channel::*;
 pub use connection::*;
 
 pub use datachannel_facade::Error;
+pub use datachannel_facade::IceServer;
+pub use datachannel_facade::IceTransportPolicy;
 
 #[cfg(test)]
 mod test {

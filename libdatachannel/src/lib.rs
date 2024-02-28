@@ -34,7 +34,7 @@ pub enum TransportPolicy {
     Relay = libdatachannel_sys::rtcTransportPolicy_RTC_TRANSPORT_POLICY_RELAY,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SdpType {
     Offer,
     Answer,
@@ -90,13 +90,13 @@ fn check_error(r: i32) -> Result<i32, Error> {
     Ok(r)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Description {
     pub type_: SdpType,
     pub sdp: String,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Configuration {
     pub ice_servers: Vec<String>,
     pub proxy_server: Option<String>,

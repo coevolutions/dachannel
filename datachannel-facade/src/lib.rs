@@ -144,7 +144,7 @@ pub enum IceTransportPolicy {
 }
 
 /// A server which may be used by the ICE agent; these are typically STUN and/or TURN servers.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IceServer {
     /// This required property is either a single string or an array of strings, each specifying a URL which can be used
     /// to connect to the server.
@@ -158,7 +158,7 @@ pub struct IceServer {
 }
 
 /// An object providing options to configure the new connection:
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Configuration {
     /// An array of objects, each describing one server which may be used by the ICE agent; these are typically STUN
     /// and/or TURN servers. If this isn't specified, the connection attempt will be made with no STUN or TURN server

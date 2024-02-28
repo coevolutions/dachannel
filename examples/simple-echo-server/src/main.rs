@@ -8,13 +8,30 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    env_logger::init();
+
     let args = Args::parse();
 
     let listener = tokio::net::TcpListener::bind(args.listen_addr).await?;
     let local_addr = listener.local_addr()?;
     println!("listening on: {}", local_addr);
 
-    let (serve_fut, connecting_rx) = dachannel_server::serve(listener, 128).await;
+    let (serve_fut, connecting_rx) = dachannel_server::serve(
+        listener,
+        vec![dachannel::IceServer {
+            urls: vec![
+                "stun:stun.l.google.com:19302".to_string(),
+                "stun:stun1.l.google.com:19302".to_string(),
+                "stun:stun2.l.google.com:19302".to_string(),
+                "stun:stun3.l.google.com:19302".to_string(),
+                "stun:stun4.l.google.com:19302".to_string(),
+            ],
+            username: None,
+            credential: None,
+        }],
+        128,
+    )
+    .await;
 
     tokio::spawn(async move {
         serve_fut.await.unwrap();

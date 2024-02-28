@@ -131,39 +131,62 @@ struct AppState {
     connecting_tx: async_channel::Sender<Connecting>,
 }
 
-/// Start the server on a listener.
-pub async fn serve(
+pub struct Builder {
     listener: tokio::net::TcpListener,
     ice_servers: Vec<dachannel::IceServer>,
     backlog: usize,
-) -> (
-    impl std::future::Future<Output = Result<(), std::io::Error>>,
-    async_channel::Receiver<Connecting>,
-) {
-    let (connecting_tx, connecting_rx) = async_channel::bounded(backlog);
-    (
-        (move || async move {
-            let bind_addr = listener.local_addr()?;
-            axum::serve(
-                listener,
-                axum::Router::new()
-                    .route("/", axum::routing::post(offer))
-                    .with_state(std::sync::Arc::new(AppState {
-                        bind_addr,
-                        ice_servers,
-                        connecting_tx: connecting_tx.clone(),
-                    }))
-                    .layer(
-                        tower_http::cors::CorsLayer::new()
-                            .allow_headers([axum::http::header::AUTHORIZATION])
-                            .allow_methods([axum::http::Method::POST])
-                            .allow_origin(tower_http::cors::Any),
-                    )
-                    .layer(tower_http::limit::RequestBodyLimitLayer::new(4096))
-                    .into_make_service_with_connect_info::<std::net::SocketAddr>(),
-            )
-            .await
-        })(),
-        connecting_rx,
-    )
+}
+
+pub fn builder(listener: tokio::net::TcpListener) -> Builder {
+    Builder {
+        listener,
+        ice_servers: vec![],
+        backlog: 128,
+    }
+}
+
+impl Builder {
+    pub fn ice_servers(mut self, ice_servers: Vec<dachannel::IceServer>) -> Self {
+        self.ice_servers = ice_servers;
+        self
+    }
+
+    pub fn backlog(mut self, backlog: usize) -> Self {
+        self.backlog = backlog;
+        self
+    }
+
+    pub fn serve(
+        self,
+    ) -> (
+        impl std::future::Future<Output = Result<(), std::io::Error>>,
+        async_channel::Receiver<Connecting>,
+    ) {
+        let (connecting_tx, connecting_rx) = async_channel::bounded(self.backlog);
+        (
+            (move || async move {
+                let bind_addr = self.listener.local_addr()?;
+                axum::serve(
+                    self.listener,
+                    axum::Router::new()
+                        .route("/", axum::routing::post(offer))
+                        .with_state(std::sync::Arc::new(AppState {
+                            bind_addr,
+                            ice_servers: self.ice_servers,
+                            connecting_tx: connecting_tx.clone(),
+                        }))
+                        .layer(
+                            tower_http::cors::CorsLayer::new()
+                                .allow_headers([axum::http::header::AUTHORIZATION])
+                                .allow_methods([axum::http::Method::POST])
+                                .allow_origin(tower_http::cors::Any),
+                        )
+                        .layer(tower_http::limit::RequestBodyLimitLayer::new(4096))
+                        .into_make_service_with_connect_info::<std::net::SocketAddr>(),
+                )
+                .await
+            })(),
+            connecting_rx,
+        )
+    }
 }

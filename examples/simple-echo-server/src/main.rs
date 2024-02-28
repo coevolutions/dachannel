@@ -47,10 +47,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             },
         )?;
 
-        let pc = connecting.await?;
+        let conn = match connecting.await {
+            Ok(conn) => conn,
+            Err(e) => {
+                println!("[{}] failed to connect: {}", remote_addr, e);
+                continue;
+            }
+        };
 
         tokio::spawn(async move {
-            let _pc = pc;
+            let _conn = conn;
             loop {
                 let buf = match dc.recv().await {
                     Ok(buf) => buf,

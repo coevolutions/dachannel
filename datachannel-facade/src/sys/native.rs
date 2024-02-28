@@ -10,6 +10,16 @@ impl From<libdatachannel::Error> for crate::Error {
     }
 }
 
+#[derive(thiserror::Error, Debug)]
+#[error("{0}")]
+pub struct DataChannelError(String);
+
+impl From<DataChannelError> for crate::Error {
+    fn from(value: DataChannelError) -> Self {
+        Self(value.into())
+    }
+}
+
 impl From<crate::SdpType> for libdatachannel::SdpType {
     fn from(value: crate::SdpType) -> Self {
         match value {
@@ -237,8 +247,10 @@ impl DataChannel {
         self.inner.set_on_buffered_amount_low(cb);
     }
 
-    pub fn set_on_error(&mut self, cb: Option<impl Fn(&str) + 'static>) {
-        self.inner.set_on_error(cb);
+    pub fn set_on_error(&mut self, cb: Option<impl Fn(crate::Error) + 'static>) {
+        self.inner.set_on_error(
+            cb.map(|cb| move |err: &str| cb(DataChannelError(err.to_string()).into())),
+        );
     }
 
     pub fn set_on_message(&mut self, cb: Option<impl Fn(&[u8]) + 'static>) {

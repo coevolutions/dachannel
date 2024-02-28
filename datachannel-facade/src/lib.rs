@@ -344,7 +344,7 @@ impl DataChannel {
 
     /// A WebRTC error event is sent to an RTCDataChannel object's onerror event handler when an error occurs on the
     /// data channel.
-    pub fn set_on_error(&mut self, cb: Option<impl Fn(&str) + 'static>) {
+    pub fn set_on_error(&mut self, cb: Option<impl Fn(Error) + 'static>) {
         self.inner.set_on_error(cb)
     }
 

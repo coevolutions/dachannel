@@ -208,10 +208,9 @@ impl DataChannel {
         self.inner.set_on_buffered_amount_low(cb);
     }
 
-    pub fn set_on_error(&mut self, cb: Option<impl Fn(&str) + 'static>) {
-        self.inner.set_on_error(
-            cb.map(|cb| move |err: web_datachannel::Error| cb(&String::from(err.to_string()))),
-        );
+    pub fn set_on_error(&mut self, cb: Option<impl Fn(crate::Error) + 'static>) {
+        self.inner
+            .set_on_error(cb.map(|cb| move |err: web_datachannel::Error| cb(err.into())));
     }
 
     pub fn set_on_message(&mut self, cb: Option<impl Fn(&[u8]) + 'static>) {

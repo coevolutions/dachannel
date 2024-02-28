@@ -19,21 +19,17 @@ pub enum Error {
     MissingLocalDescription,
 }
 
-struct ConnectingInner {
-    connection: crate::Connection,
-    body: axum::body::Body,
-    answer_sdp_tx: tokio::sync::oneshot::Sender<Option<String>>,
-}
-
 pub struct Connecting {
     parts: axum::http::request::Parts,
     remote_addr: std::net::SocketAddr,
-    inner: Option<ConnectingInner>,
+    connection: crate::Connection,
+    body: axum::body::Body,
+    answer_sdp_tx: tokio::sync::oneshot::Sender<String>,
 }
 
 impl Connecting {
     pub fn connection(&self) -> &crate::Connection {
-        &self.inner.as_ref().unwrap().connection
+        &self.connection
     }
 
     pub fn headers(&self) -> &axum::http::HeaderMap {
@@ -44,41 +40,29 @@ impl Connecting {
         &self.remote_addr
     }
 
-    pub async fn finish(mut self) -> Result<crate::Connection, Error> {
-        let inner = self.inner.take().unwrap();
-
-        let offer_sdp = String::from_utf8(inner.body.collect().await?.to_bytes().to_vec())
+    pub async fn finish(self) -> Result<crate::Connection, Error> {
+        let offer_sdp = String::from_utf8(self.body.collect().await?.to_bytes().to_vec())
             .map_err(|_| Error::MalformedBody)?;
 
-        inner
-            .connection
+        self.connection
             .set_remote_description(&crate::Description {
                 type_: crate::SdpType::Offer,
                 sdp: offer_sdp,
             })
             .await?;
-        inner
-            .connection
+        self.connection
             .set_local_description(crate::SdpType::Answer)
             .await?;
-        inner.connection.ice_candidates_gathered().await;
+        self.connection.ice_candidates_gathered().await;
 
-        let answer_sdp = inner
+        let answer_sdp = self
             .connection
             .local_description()?
             .ok_or(Error::MissingLocalDescription)?
             .sdp;
-        let _ = inner.answer_sdp_tx.send(Some(answer_sdp));
+        let _ = self.answer_sdp_tx.send(answer_sdp);
 
-        Ok(inner.connection)
-    }
-}
-
-impl Drop for Connecting {
-    fn drop(&mut self) {
-        if let Some(inner) = self.inner.take() {
-            let _ = inner.answer_sdp_tx.send(None);
-        }
+        Ok(self.connection)
     }
 }
 
@@ -96,7 +80,7 @@ async fn offer(
         state.bind_addr.port(),
     );
 
-    let conn = crate::Connection::new(config).map_err(|e| {
+    let connection = crate::Connection::new(config).map_err(|e| {
         log::error!("failed to create connection: {e}");
         axum::http::StatusCode::INTERNAL_SERVER_ERROR
     })?;
@@ -109,21 +93,18 @@ async fn offer(
     state
         .connecting_tx
         .send(Connecting {
-            inner: Some(ConnectingInner {
-                connection: conn,
-                body,
-                answer_sdp_tx,
-            }),
-            remote_addr,
             parts,
+            remote_addr,
+            connection,
+            body,
+            answer_sdp_tx,
         })
         .await
         .map_err(|_e| axum::http::StatusCode::SERVICE_UNAVAILABLE)?;
 
     let answer_sdp = answer_sdp_rx
         .await
-        .map_err(|_e| axum::http::StatusCode::SERVICE_UNAVAILABLE)?
-        .ok_or_else(|| axum::http::StatusCode::FORBIDDEN)?;
+        .map_err(|_e| axum::http::StatusCode::FORBIDDEN)?;
 
     Ok(answer_sdp)
 }
@@ -157,7 +138,6 @@ pub async fn listen(
                 }))
                 .layer(
                     tower_http::cors::CorsLayer::new()
-                        .allow_credentials(true)
                         .allow_headers([axum::http::header::AUTHORIZATION])
                         .allow_methods([axum::http::Method::POST])
                         .allow_origin(tower_http::cors::Any),

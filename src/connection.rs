@@ -6,9 +6,7 @@ pub use datachannel_facade::IceGatheringState;
 pub use datachannel_facade::PeerConnectionState;
 pub use datachannel_facade::SdpType;
 
-pub struct ConnectionBuilder {
-    pc: datachannel_facade::PeerConnection,
-}
+pub struct ConnectionBuilder(Connection);
 
 impl ConnectionBuilder {
     pub fn create_data_channel(
@@ -17,13 +15,13 @@ impl ConnectionBuilder {
         options: DataChannelOptions,
     ) -> Result<crate::Channel, Error> {
         Ok(crate::Channel::wrap(
-            self.pc.create_data_channel(label, options)?,
+            self.0.pc.create_data_channel(label, options)?,
             false,
         ))
     }
 
     pub fn build(self) -> Connection {
-        Connection::wrap(self.pc)
+        self.0
     }
 }
 
@@ -73,9 +71,9 @@ impl Connection {
     }
 
     pub fn builder(config: Configuration) -> Result<ConnectionBuilder, Error> {
-        Ok(ConnectionBuilder {
-            pc: datachannel_facade::PeerConnection::new(config)?,
-        })
+        Ok(ConnectionBuilder(Self::wrap(
+            datachannel_facade::PeerConnection::new(config)?,
+        )))
     }
 
     pub async fn next_ice_candidate(&self) -> Option<Option<String>> {

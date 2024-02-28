@@ -8,7 +8,7 @@ pub struct Server {
 
 struct ConnectingInner {
     connection: crate::Connection,
-    body: hyper::body::Incoming,
+    body: axum::body::Body,
     answer_sdp_tx: tokio::sync::oneshot::Sender<Option<String>>,
 }
 
@@ -63,42 +63,28 @@ impl Drop for Connecting {
 }
 
 async fn offer(
-    connecting_tx: async_channel::Sender<Connecting>,
-    bind_addr: std::net::SocketAddr,
-    req: hyper::Request<hyper::body::Incoming>,
-) -> Result<
-    hyper::Response<http_body_util::Full<hyper::body::Bytes>>,
-    Box<dyn std::error::Error + Send + Sync>,
-> {
-    if req.method() != hyper::Method::POST {
-        let mut resp = hyper::Response::new(http_body_util::Full::new(hyper::body::Bytes::from(
-            hyper::StatusCode::METHOD_NOT_ALLOWED
-                .canonical_reason()
-                .unwrap_or(""),
-        )));
-        *resp.status_mut() = hyper::StatusCode::METHOD_NOT_ALLOWED;
-        return Ok(resp);
-    }
-
+    axum::extract::State(state): axum::extract::State<std::sync::Arc<AppState>>,
+    req: axum::extract::Request,
+) -> Result<String, axum::http::StatusCode> {
     let (parts, body) = req.into_parts();
 
     let mut config: crate::Configuration = Default::default();
-    config.set_bind(bind_addr.ip(), bind_addr.port(), bind_addr.port());
+    config.set_bind(
+        state.bind_addr.ip(),
+        state.bind_addr.port(),
+        state.bind_addr.port(),
+    );
 
-    let conn = crate::Connection::new(config)?;
+    let conn = crate::Connection::new(config)
+        .map_err(|_e| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
 
     if body.size_hint().upper().unwrap_or(u64::MAX) > 8 * 1024 {
-        let mut resp = hyper::Response::new(http_body_util::Full::new(hyper::body::Bytes::from(
-            hyper::StatusCode::PAYLOAD_TOO_LARGE
-                .canonical_reason()
-                .unwrap_or(""),
-        )));
-        *resp.status_mut() = hyper::StatusCode::PAYLOAD_TOO_LARGE;
-        return Ok(resp);
+        return Err(hyper::StatusCode::PAYLOAD_TOO_LARGE);
     }
 
     let (answer_sdp_tx, answer_sdp_rx) = tokio::sync::oneshot::channel();
-    connecting_tx
+    state
+        .connecting_tx
         .send(Connecting {
             inner: Some(ConnectingInner {
                 connection: conn,
@@ -107,32 +93,24 @@ async fn offer(
             }),
             headers: parts.headers,
         })
-        .await?;
+        .await
+        .map_err(|_e| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let answer_sdp = if let Some(answer_sdp) = answer_sdp_rx.await? {
+    let answer_sdp = if let Some(answer_sdp) = answer_sdp_rx
+        .await
+        .map_err(|_e| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?
+    {
         answer_sdp
     } else {
-        let mut resp = hyper::Response::new(http_body_util::Full::new(hyper::body::Bytes::from(
-            hyper::StatusCode::FORBIDDEN
-                .canonical_reason()
-                .unwrap_or(""),
-        )));
-        *resp.status_mut() = hyper::StatusCode::FORBIDDEN;
-        return Ok(resp);
+        return Err(hyper::StatusCode::FORBIDDEN);
     };
 
-    let mut resp = hyper::Response::new(http_body_util::Full::new(hyper::body::Bytes::from(
-        answer_sdp,
-    )));
-    resp.headers_mut().append(
-        hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN,
-        hyper::header::HeaderValue::from_str("*").unwrap(),
-    );
-    resp.headers_mut().append(
-        hyper::header::ACCESS_CONTROL_ALLOW_METHODS,
-        hyper::header::HeaderValue::from_str("POST").unwrap(),
-    );
-    Ok(resp)
+    Ok(answer_sdp)
+}
+
+struct AppState {
+    bind_addr: std::net::SocketAddr,
+    connecting_tx: async_channel::Sender<Connecting>,
 }
 
 impl Server {
@@ -143,34 +121,22 @@ impl Server {
         let bind_addr = listener.local_addr()?;
 
         let (connecting_tx, connecting_rx) = async_channel::bounded(backlog);
+
+        let app = axum::Router::new()
+            .route("/", axum::routing::post(offer))
+            .layer(
+                tower_http::cors::CorsLayer::new()
+                    .allow_methods([axum::http::Method::POST])
+                    .allow_origin(tower_http::cors::Any),
+            )
+            .with_state(std::sync::Arc::new(AppState {
+                bind_addr,
+                connecting_tx: connecting_tx.clone(),
+            }));
+
         tokio::task::spawn(async move {
-            loop {
-                let (stream, _) = match listener.accept().await {
-                    Ok((stream, addr)) => (stream, addr),
-                    Err(err) => {
-                        log::error!("Error accepting connection: {:?}", err);
-                        break;
-                    }
-                };
-                let io = hyper_util::rt::TokioIo::new(stream);
-
-                let bind_addr = bind_addr.clone();
-                let connecting_tx = connecting_tx.clone();
-
-                tokio::task::spawn(async move {
-                    if let Err(err) = hyper::server::conn::http1::Builder::new()
-                        .serve_connection(
-                            io,
-                            hyper::service::service_fn(move |req| {
-                                offer(connecting_tx.clone(), bind_addr, req)
-                            }),
-                        )
-                        .await
-                    {
-                        log::error!("Error serving connection: {:?}", err);
-                    }
-                });
-            }
+            let _ = axum::serve(listener, app).await;
+            connecting_tx.close();
         });
 
         Ok(Self { connecting_rx })

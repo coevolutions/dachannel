@@ -2,6 +2,7 @@ pub type Configuration = libdatachannel::Configuration;
 
 pub struct PeerConnection {
     inner: libdatachannel::PeerConnection,
+    local_description_set_notify: std::sync::Arc<async_notify::Notify>,
 }
 
 impl From<libdatachannel::Error> for crate::Error {
@@ -84,49 +85,59 @@ impl From<libdatachannel::State> for crate::PeerConnectionState {
 
 impl PeerConnection {
     pub fn new(config: crate::Configuration) -> Result<Self, crate::Error> {
+        let local_description_set_notify = std::sync::Arc::new(async_notify::Notify::new());
+
+        let mut pc = libdatachannel::PeerConnection::new(libdatachannel::Configuration {
+            ice_servers: config
+                .ice_servers
+                .into_iter()
+                .flat_map(|ice_server| {
+                    ice_server
+                        .urls
+                        .into_iter()
+                        .map(|url| {
+                            let mid = if let Some(mid) = url.chars().position(|c| c == ':') {
+                                mid
+                            } else {
+                                return url;
+                            };
+
+                            let (proto, rest) = url.split_at(mid);
+                            let rest = &rest[1..];
+
+                            if let (Some(username), Some(credential)) =
+                                (&ice_server.username, &ice_server.credential)
+                            {
+                                format!(
+                                    "{}:{}:{}@{}",
+                                    proto,
+                                    urlencoding::encode(username),
+                                    urlencoding::encode(credential),
+                                    rest
+                                )
+                            } else {
+                                format!("{}:{}", proto, rest)
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>(),
+            ice_transport_policy: match config.ice_transport_policy {
+                crate::IceTransportPolicy::All => libdatachannel::TransportPolicy::All,
+                crate::IceTransportPolicy::Relay => libdatachannel::TransportPolicy::Relay,
+            },
+            disable_auto_negotiation: true,
+            ..config.sys
+        })?;
+        pc.set_on_local_description(Some({
+            let local_description_set_notify = std::sync::Arc::clone(&local_description_set_notify);
+            move |_: &str, _: libdatachannel::SdpType| {
+                local_description_set_notify.notify();
+            }
+        }));
         Ok(Self {
-            inner: libdatachannel::PeerConnection::new(libdatachannel::Configuration {
-                ice_servers: config
-                    .ice_servers
-                    .into_iter()
-                    .flat_map(|ice_server| {
-                        ice_server
-                            .urls
-                            .into_iter()
-                            .map(|url| {
-                                let mid = if let Some(mid) = url.chars().position(|c| c == ':') {
-                                    mid
-                                } else {
-                                    return url;
-                                };
-
-                                let (proto, rest) = url.split_at(mid);
-                                let rest = &rest[1..];
-
-                                if let (Some(username), Some(credential)) =
-                                    (&ice_server.username, &ice_server.credential)
-                                {
-                                    format!(
-                                        "{}:{}:{}@{}",
-                                        proto,
-                                        urlencoding::encode(username),
-                                        urlencoding::encode(credential),
-                                        rest
-                                    )
-                                } else {
-                                    format!("{}:{}", proto, rest)
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                    })
-                    .collect::<Vec<_>>(),
-                ice_transport_policy: match config.ice_transport_policy {
-                    crate::IceTransportPolicy::All => libdatachannel::TransportPolicy::All,
-                    crate::IceTransportPolicy::Relay => libdatachannel::TransportPolicy::Relay,
-                },
-                disable_auto_negotiation: true,
-                ..config.sys
-            })?,
+            inner: pc,
+            local_description_set_notify,
         })
     }
 
@@ -145,6 +156,7 @@ impl PeerConnection {
             return Ok(());
         }
         self.inner.set_local_description(Some(type_.into()))?;
+        self.local_description_set_notify.notified().await;
         Ok(())
     }
 

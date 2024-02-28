@@ -7,6 +7,7 @@ license = "MIT"
 repository = "https://github.com/coevolutions/dachannel"
 
 [dependencies]
+async-notify = "0.3"
 cfg-if = "1"
 log = "0.4"
 thiserror = "1"
@@ -20,7 +21,6 @@ web-datachannel = { version = "0.1", path = "../web-datachannel" }
 
 [dev-dependencies]
 async-channel = "2"
-async-notify = "0.3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 pollster = { version = "0.3", features = ["macro"] }

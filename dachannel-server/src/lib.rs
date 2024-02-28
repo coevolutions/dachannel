@@ -135,21 +135,19 @@ struct AppState {
     connecting_tx: async_channel::Sender<Connecting>,
 }
 
-pub struct Builder {
-    listener: tokio::net::TcpListener,
+pub struct ServeOptions {
     ice_servers: Vec<dachannel::IceServer>,
     backlog: usize,
 }
 
-pub fn builder(listener: tokio::net::TcpListener) -> Builder {
-    Builder {
-        listener,
-        ice_servers: vec![],
-        backlog: 128,
+impl ServeOptions {
+    pub fn new() -> Self {
+        Self {
+            ice_servers: vec![],
+            backlog: 128,
+        }
     }
-}
 
-impl Builder {
     pub fn ice_servers(mut self, ice_servers: Vec<dachannel::IceServer>) -> Self {
         self.ice_servers = ice_servers;
         self
@@ -162,6 +160,7 @@ impl Builder {
 
     pub fn serve(
         self,
+        listener: tokio::net::TcpListener,
     ) -> (
         impl std::future::Future<Output = Result<(), std::io::Error>>,
         async_channel::Receiver<Connecting>,
@@ -169,9 +168,9 @@ impl Builder {
         let (connecting_tx, connecting_rx) = async_channel::bounded(self.backlog);
         (
             (move || async move {
-                let bind_addr = self.listener.local_addr()?;
+                let bind_addr = listener.local_addr()?;
                 axum::serve(
-                    self.listener,
+                    listener,
                     axum::Router::new()
                         .route("/", axum::routing::post(offer))
                         .with_state(std::sync::Arc::new(AppState {

@@ -10,36 +10,36 @@ pub enum Error {
     MalformedBody,
 }
 
-pub struct Builder {
-    cb: dachannel::ConnectionBuilder,
-    url: String,
+pub struct ConnectOptions {
     authorization: Option<String>,
 }
 
-pub fn builder(cb: dachannel::ConnectionBuilder, url: String) -> Builder {
-    Builder {
-        cb,
-        url,
-        authorization: None,
+impl ConnectOptions {
+    pub fn new() -> Self {
+        Self {
+            authorization: None,
+        }
     }
-}
 
-impl Builder {
     pub fn authorization(mut self, authorization: Option<String>) -> Self {
         self.authorization = authorization;
         self
     }
 
     /// Connect to a dachannel server.
-    pub async fn connect(self) -> Result<dachannel::Connection, Error> {
-        let conn = self.cb.build();
+    pub async fn connect(
+        self,
+        cb: dachannel::ConnectionBuilder,
+        url: String,
+    ) -> Result<dachannel::Connection, Error> {
+        let conn = cb.build();
 
         conn.set_local_description(dachannel::SdpType::Offer)
             .await?;
         let offer_sdp = conn.local_description()?.unwrap().sdp;
 
         let client = reqwest::Client::new();
-        let mut req = client.post(self.url).body(offer_sdp);
+        let mut req = client.post(url).body(offer_sdp);
         if let Some(authorization) = self.authorization {
             req = req.header(reqwest::header::AUTHORIZATION, authorization);
         }
@@ -67,7 +67,7 @@ mod test {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let local_addr = listener.local_addr().unwrap();
 
-        let (serve_fut, connecting_rx) = dachannel_server::builder(listener).serve();
+        let (serve_fut, connecting_rx) = dachannel_server::ServeOptions::new().serve(listener);
 
         tokio::spawn(async move {
             serve_fut.await.unwrap();
@@ -87,8 +87,8 @@ mod test {
                 )
                 .unwrap();
 
-            let _conn = builder(cb, format!("http://127.0.0.1:{}", local_addr.port()))
-                .connect()
+            let _conn = ConnectOptions::new()
+                .connect(cb, format!("http://127.0.0.1:{}", local_addr.port()))
                 .await
                 .unwrap();
 

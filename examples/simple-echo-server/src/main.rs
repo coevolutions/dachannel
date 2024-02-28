@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let local_addr = listener.local_addr()?;
     println!("listening on: {}", local_addr);
 
-    let (serve_fut, connecting_rx) = dachannel_server::builder(listener)
+    let (serve_fut, connecting_rx) = dachannel_server::ServeOptions::new()
         .ice_servers(vec![dachannel::IceServer {
             urls: vec![
                 "stun:stun.l.google.com:19302".to_string(),
@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             username: None,
             credential: None,
         }])
-        .serve();
+        .serve(listener);
 
     tokio::spawn(async move {
         serve_fut.await.unwrap();

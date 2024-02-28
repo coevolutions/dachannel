@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 ..Default::default()
             },
         )?;
-        let _pc = connecting.finish().await?;
+        let _pc = connecting.await?;
 
         dc.send(b"hello world").await?;
         println!("got: {:?}", dc.recv().await);

@@ -80,7 +80,7 @@ mod test {
             )
             .unwrap();
 
-        let _conn = connecting.finish().await.unwrap();
+        let _conn = connecting.await.unwrap();
         assert_eq!(dc.recv().await.unwrap(), b"hello world");
 
         client_jh.await.unwrap();

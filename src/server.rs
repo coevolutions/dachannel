@@ -39,30 +39,37 @@ impl Connecting {
     pub fn remote_addr(&self) -> &std::net::SocketAddr {
         &self.remote_addr
     }
+}
 
-    pub async fn finish(self) -> Result<crate::Connection, Error> {
-        let offer_sdp = String::from_utf8(self.body.collect().await?.to_bytes().to_vec())
-            .map_err(|_| Error::MalformedBody)?;
+impl std::future::IntoFuture for Connecting {
+    type Output = Result<crate::Connection, Error>;
+    type IntoFuture = std::pin::Pin<Box<dyn std::future::Future<Output = Self::Output> + Send>>;
 
-        self.connection
-            .set_remote_description(&crate::Description {
-                type_: crate::SdpType::Offer,
-                sdp: offer_sdp,
-            })
-            .await?;
-        self.connection
-            .set_local_description(crate::SdpType::Answer)
-            .await?;
-        self.connection.ice_candidates_gathered().await;
+    fn into_future(self) -> Self::IntoFuture {
+        Box::pin(async {
+            let offer_sdp = String::from_utf8(self.body.collect().await?.to_bytes().to_vec())
+                .map_err(|_| Error::MalformedBody)?;
 
-        let answer_sdp = self
-            .connection
-            .local_description()?
-            .ok_or(Error::MissingLocalDescription)?
-            .sdp;
-        let _ = self.answer_sdp_tx.send(answer_sdp);
+            self.connection
+                .set_remote_description(&crate::Description {
+                    type_: crate::SdpType::Offer,
+                    sdp: offer_sdp,
+                })
+                .await?;
+            self.connection
+                .set_local_description(crate::SdpType::Answer)
+                .await?;
+            self.connection.ice_candidates_gathered().await;
 
-        Ok(self.connection)
+            let answer_sdp = self
+                .connection
+                .local_description()?
+                .ok_or(Error::MissingLocalDescription)?
+                .sdp;
+            let _ = self.answer_sdp_tx.send(answer_sdp);
+
+            Ok(self.connection)
+        })
     }
 }
 

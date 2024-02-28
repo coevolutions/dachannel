@@ -1,6 +1,9 @@
 pub mod channel;
 pub mod connection;
 
+#[cfg(all(not(target_arch = "wasm32"), feature = "server"))]
+pub mod server;
+
 pub use channel::*;
 pub use connection::*;
 

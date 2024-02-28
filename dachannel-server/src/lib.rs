@@ -23,15 +23,15 @@ pub enum Error {
 pub struct Connecting {
     parts: axum::http::request::Parts,
     remote_addr: std::net::SocketAddr,
-    connection: dachannel::Connection,
+    connection_builder: dachannel::ConnectionBuilder,
     body: axum::body::Body,
     answer_sdp_tx: Option<tokio::io::DuplexStream>,
 }
 
 impl Connecting {
     /// The new connection. Any DataChannels can be configured here before completing the future.
-    pub fn connection(&self) -> &dachannel::Connection {
-        &self.connection
+    pub fn connection_builder(&self) -> &dachannel::ConnectionBuilder {
+        &self.connection_builder
     }
 
     /// The HTTP Authorization header, if any.
@@ -58,19 +58,18 @@ impl std::future::IntoFuture for Connecting {
             let offer_sdp = String::from_utf8(self.body.collect().await?.to_bytes().to_vec())
                 .map_err(|_| Error::MalformedBody)?;
 
-            self.connection
-                .set_remote_description(&dachannel::Description {
-                    type_: dachannel::SdpType::Offer,
-                    sdp: offer_sdp,
-                })
-                .await?;
-            self.connection
-                .set_local_description(dachannel::SdpType::Answer)
-                .await?;
-            self.connection.ice_candidates_gathered().await;
+            let conn = self.connection_builder.build();
 
-            let answer_sdp = self
-                .connection
+            conn.set_remote_description(&dachannel::Description {
+                type_: dachannel::SdpType::Offer,
+                sdp: offer_sdp,
+            })
+            .await?;
+            conn.set_local_description(dachannel::SdpType::Answer)
+                .await?;
+            conn.ice_candidates_gathered().await;
+
+            let answer_sdp = conn
                 .local_description()?
                 .map(|v| v.sdp)
                 .unwrap_or_else(|| "".to_string());
@@ -82,7 +81,7 @@ impl std::future::IntoFuture for Connecting {
                 .await
                 .map_err(|_| Error::Closed)?;
 
-            Ok(self.connection)
+            Ok(conn)
         })
     }
 }
@@ -101,7 +100,7 @@ async fn offer(
         state.bind_addr.port(),
     );
 
-    let connection = dachannel::Connection::new(config).map_err(|e| {
+    let connection_builder = dachannel::Connection::builder(config).map_err(|e| {
         log::error!("failed to create connection: {e}");
         axum::http::StatusCode::INTERNAL_SERVER_ERROR
     })?;
@@ -112,7 +111,7 @@ async fn offer(
         .send(Connecting {
             parts,
             remote_addr,
-            connection,
+            connection_builder,
             body,
             answer_sdp_tx: Some(answer_sdp_tx),
         })

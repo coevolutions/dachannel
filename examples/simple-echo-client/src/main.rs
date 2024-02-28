@@ -13,8 +13,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let args = Args::parse();
 
     let config: dachannel::Configuration = Default::default();
-    let conn = dachannel::Connection::new(config)?;
-    let dc = conn.create_data_channel(
+    let cb = dachannel::Connection::builder(config)?;
+    let dc = cb.create_data_channel(
         "test",
         dachannel::DataChannelOptions {
             negotiated: true,
@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             ..Default::default()
         },
     )?;
-    dachannel_client::connect(&args.connect_url, None, &conn).await?;
+    let _conn = dachannel_client::connect(&args.connect_url, None, cb).await?;
 
     let stdin = std::io::stdin();
     loop {

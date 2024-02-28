@@ -5,8 +5,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     wasm_logger::init(wasm_logger::Config::default());
 
     let config: dachannel::Configuration = Default::default();
-    let conn = dachannel::Connection::new(config)?;
-    let dc = conn.create_data_channel(
+    let cb = dachannel::Connection::builder(config)?;
+    let dc = cb.create_data_channel(
         "test",
         dachannel::DataChannelOptions {
             negotiated: true,
@@ -14,7 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             ..Default::default()
         },
     )?;
-    dachannel_client::connect("http://127.0.0.1:12345", None, &conn).await?;
+    let _conn = dachannel_client::connect("http://127.0.0.1:12345", None, cb).await?;
     dc.send(b"hello world!!").await?;
     log::info!(
         "got: {:?}",

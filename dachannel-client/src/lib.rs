@@ -14,8 +14,10 @@ pub enum Error {
 pub async fn connect(
     url: &str,
     authorization: Option<String>,
-    conn: &dachannel::Connection,
-) -> Result<(), Error> {
+    cb: dachannel::ConnectionBuilder,
+) -> Result<dachannel::Connection, Error> {
+    let conn = cb.build();
+
     conn.set_local_description(dachannel::SdpType::Offer)
         .await?;
     conn.ice_candidates_gathered().await;
@@ -36,7 +38,7 @@ pub async fn connect(
     })
     .await?;
 
-    Ok(())
+    Ok(conn)
 }
 
 #[cfg(test)]
@@ -57,8 +59,8 @@ mod test {
 
         let client_jh = tokio::spawn(async move {
             let config: dachannel::Configuration = Default::default();
-            let conn = dachannel::Connection::new(config).unwrap();
-            let dc = conn
+            let cb = dachannel::Connection::builder(config).unwrap();
+            let dc = cb
                 .create_data_channel(
                     "test",
                     dachannel::DataChannelOptions {
@@ -69,20 +71,16 @@ mod test {
                 )
                 .unwrap();
 
-            connect(
-                &format!("http://127.0.0.1:{}", local_addr.port()),
-                None,
-                &conn,
-            )
-            .await
-            .unwrap();
+            let _conn = connect(&format!("http://127.0.0.1:{}", local_addr.port()), None, cb)
+                .await
+                .unwrap();
 
             dc.send(b"hello world").await.unwrap();
         });
 
         let connecting = connecting_rx.recv().await.unwrap();
         let dc = connecting
-            .connection()
+            .connection_builder()
             .create_data_channel(
                 "test",
                 dachannel::DataChannelOptions {

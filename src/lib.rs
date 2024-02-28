@@ -21,16 +21,16 @@ mod test {
     #[cfg_attr(not(target_arch = "wasm32"), pollster::test)]
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
     pub async fn test_connection_new() {
-        let conn = Connection::new(Default::default()).unwrap();
-        conn.create_data_channel("test", Default::default())
-            .unwrap();
+        let cb = Connection::builder(Default::default()).unwrap();
+        cb.create_data_channel("test", Default::default()).unwrap();
+        let _conn = cb.build();
     }
 
     #[cfg_attr(not(target_arch = "wasm32"), pollster::test)]
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
     pub async fn test_connection_communicate() {
-        let conn1 = Connection::new(Default::default()).unwrap();
-        let chan1 = conn1
+        let cb1 = Connection::builder(Default::default()).unwrap();
+        let chan1 = cb1
             .create_data_channel(
                 "test",
                 DataChannelOptions {
@@ -40,11 +40,12 @@ mod test {
                 },
             )
             .unwrap();
+        let conn1 = cb1.build();
         conn1.set_local_description(SdpType::Offer).await.unwrap();
         conn1.ice_candidates_gathered().await;
 
-        let conn2 = Connection::new(Default::default()).unwrap();
-        let chan2 = conn2
+        let cb2 = Connection::builder(Default::default()).unwrap();
+        let chan2 = cb2
             .create_data_channel(
                 "test",
                 DataChannelOptions {
@@ -55,6 +56,7 @@ mod test {
             )
             .unwrap();
 
+        let conn2 = cb2.build();
         conn2
             .set_remote_description(&conn1.local_description().unwrap().unwrap())
             .await
@@ -78,14 +80,14 @@ mod test {
     #[cfg_attr(not(target_arch = "wasm32"), pollster::test)]
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
     pub async fn test_connection_communicate_nonnegotiated() {
-        let conn1 = Connection::new(Default::default()).unwrap();
-        let chan1 = conn1
-            .create_data_channel("test", Default::default())
-            .unwrap();
+        let cb1 = Connection::builder(Default::default()).unwrap();
+        let chan1 = cb1.create_data_channel("test", Default::default()).unwrap();
+        let conn1 = cb1.build();
         conn1.set_local_description(SdpType::Offer).await.unwrap();
         conn1.ice_candidates_gathered().await;
 
-        let conn2 = Connection::new(Default::default()).unwrap();
+        let cb2 = Connection::builder(Default::default()).unwrap();
+        let conn2 = cb2.build();
         conn2
             .set_remote_description(&conn1.local_description().unwrap().unwrap())
             .await

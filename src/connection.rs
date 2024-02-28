@@ -6,6 +6,27 @@ pub use datachannel_facade::IceGatheringState;
 pub use datachannel_facade::PeerConnectionState;
 pub use datachannel_facade::SdpType;
 
+pub struct ConnectionBuilder {
+    pc: datachannel_facade::PeerConnection,
+}
+
+impl ConnectionBuilder {
+    pub fn create_data_channel(
+        &self,
+        label: &str,
+        options: DataChannelOptions,
+    ) -> Result<crate::Channel, Error> {
+        Ok(crate::Channel::wrap(
+            self.pc.create_data_channel(label, options)?,
+            false,
+        ))
+    }
+
+    pub fn build(self) -> Connection {
+        Connection::wrap(self.pc)
+    }
+}
+
 pub struct Connection {
     pc: datachannel_facade::PeerConnection,
     ice_candidates_rx: async_channel::Receiver<Option<String>>,
@@ -51,8 +72,10 @@ impl Connection {
         }
     }
 
-    pub fn new(config: Configuration) -> Result<Self, Error> {
-        Ok(Self::wrap(datachannel_facade::PeerConnection::new(config)?))
+    pub fn builder(config: Configuration) -> Result<ConnectionBuilder, Error> {
+        Ok(ConnectionBuilder {
+            pc: datachannel_facade::PeerConnection::new(config)?,
+        })
     }
 
     pub async fn next_ice_candidate(&self) -> Option<Option<String>> {
@@ -76,17 +99,6 @@ impl Connection {
 
     pub fn close(&self) -> Result<(), Error> {
         self.pc.close()
-    }
-
-    pub fn create_data_channel(
-        &self,
-        label: &str,
-        options: DataChannelOptions,
-    ) -> Result<crate::Channel, Error> {
-        Ok(crate::Channel::wrap(
-            self.pc.create_data_channel(label, options)?,
-            false,
-        ))
     }
 
     pub async fn set_local_description(&self, type_: SdpType) -> Result<(), Error> {

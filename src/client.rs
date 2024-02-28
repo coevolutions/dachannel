@@ -37,7 +37,7 @@ mod test {
 
         let server = crate::server::Server::listen(listener, 128).await.unwrap();
 
-        tokio::spawn(async move {
+        let jh = tokio::spawn(async move {
             let config: crate::Configuration = Default::default();
             let conn = crate::Connection::new(config).unwrap();
             let dc = conn
@@ -77,5 +77,7 @@ mod test {
 
         let _conn = connecting.finish().await.unwrap();
         assert_eq!(dc.recv().await.unwrap(), b"hello world");
+
+        jh.await.unwrap();
     }
 }

@@ -4,6 +4,21 @@ use axum::body::HttpBody as _;
 use datachannel_facade::platform::native::ConfigurationExt as _;
 use http_body_util::BodyExt as _;
 
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("dachannel: {0}")]
+    Dachannel(#[from] crate::Error),
+
+    #[error("axum: {0}")]
+    Axum(#[from] axum::Error),
+
+    #[error("malformed body")]
+    MalformedBody,
+
+    #[error("missing local description")]
+    MissingLocalDescription,
+}
+
 struct ConnectingInner {
     connection: crate::Connection,
     body: axum::body::Body,
@@ -29,12 +44,11 @@ impl Connecting {
         &self.remote_addr
     }
 
-    pub async fn finish(
-        mut self,
-    ) -> Result<crate::Connection, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn finish(mut self) -> Result<crate::Connection, Error> {
         let inner = self.inner.take().unwrap();
 
-        let offer_sdp = String::from_utf8(inner.body.collect().await?.to_bytes().to_vec())?;
+        let offer_sdp = String::from_utf8(inner.body.collect().await?.to_bytes().to_vec())
+            .map_err(|_| Error::MalformedBody)?;
 
         inner
             .connection
@@ -52,12 +66,7 @@ impl Connecting {
         let answer_sdp = inner
             .connection
             .local_description()?
-            .ok_or_else(|| {
-                std::io::Error::new(
-                    std::io::ErrorKind::ConnectionRefused,
-                    "local description not populated",
-                )
-            })?
+            .ok_or(Error::MissingLocalDescription)?
             .sdp;
         let _ = inner.answer_sdp_tx.send(Some(answer_sdp));
 

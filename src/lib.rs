@@ -99,8 +99,8 @@ mod test {
 
         let chan2 = conn2.accept_channel().await.unwrap();
 
-        // chan1.send(b"hello world!").await.unwrap();
-        // assert_eq!(chan2.recv().await.unwrap(), b"hello world!");
+        chan1.send(b"hello world!").await.unwrap();
+        assert_eq!(chan2.recv().await.unwrap(), b"hello world!");
 
         chan2.send(b"goodbye world!").await.unwrap();
         assert_eq!(chan1.recv().await.unwrap(), b"goodbye world!");

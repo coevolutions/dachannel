@@ -1,15 +1,17 @@
 /// The receiver half of a channel.
 pub struct Receiver {
-    rx: async_channel::Receiver<Vec<u8>>,
+    rx: async_channel::Receiver<Result<Vec<u8>, datachannel_facade::Error>>,
 }
 
 impl Receiver {
     /// Receive a datagram from the channel, or [`None`] if the channel is closed.
     pub async fn recv(&self) -> Result<Vec<u8>, std::io::Error> {
-        self.rx
+        Ok(self
+            .rx
             .recv()
             .await
-            .map_err(|_| std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "receiver closed"))
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "receiver closed"))?
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?)
     }
 
     /// Rejoin the Receiver with its Sender.
@@ -67,13 +69,13 @@ impl Channel {
         dc.set_on_message(Some({
             let tx = tx.clone();
             move |buf: &[u8]| {
-                let _ = tx.try_send(buf.to_vec());
+                let _ = tx.try_send(Ok(buf.to_vec()));
             }
         }));
         dc.set_on_error(Some({
             let tx = tx.clone();
-            move |_: datachannel_facade::Error| {
-                // Do something useful with the error.
+            move |err: datachannel_facade::Error| {
+                let _ = tx.try_send(Err(err));
                 tx.close();
             }
         }));

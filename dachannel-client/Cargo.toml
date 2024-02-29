@@ -1,6 +1,7 @@
 [package]
 name = "dachannel-client"
 version = "0.2.0"
+description = "Client library for dachannel"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/coevolutions/dachannel"

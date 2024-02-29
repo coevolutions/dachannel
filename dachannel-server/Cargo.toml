@@ -10,7 +10,7 @@ repository = "https://github.com/coevolutions/dachannel"
 async-channel = "2"
 axum = "0.7"
 dachannel = { version = "0.2", path = ".." }
-datachannel-facade = { version = "0.1", path = "../datachannel-facade" }
+datachannel-facade = { version = "0.2", path = "../datachannel-facade" }
 log = "0.4"
 tower-http = { version = "0.5", features = ["cors", "limit"] }
 hyper-util = { version = "0.1", features = ["full"] }

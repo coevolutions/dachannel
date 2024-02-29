@@ -405,7 +405,7 @@ checksum = "248e3bacc7dc6baa3b21e405ee045c3047101a49145e7e9eca583ab4c2ca5345"
 
 [[package]]
 name = "dachannel"
-version = "0.2.1"
+version = "0.3.1"
 dependencies = [
  "async-channel",
  "async-lock",
@@ -420,7 +420,7 @@ dependencies = [
 
 [[package]]
 name = "dachannel-client"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "dachannel",
  "dachannel-server",
@@ -431,7 +431,7 @@ dependencies = [
 
 [[package]]
 name = "dachannel-server"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "async-channel",
  "axum",

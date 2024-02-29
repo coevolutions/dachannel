@@ -27,7 +27,7 @@ impl ConnectionBuilder {
 
 pub struct Connection {
     pc: datachannel_facade::PeerConnection,
-    ice_candidates_rx: async_channel::Receiver<Option<String>>,
+    ice_candidates_rx: async_channel::Receiver<String>,
     ice_candidates_gathered_notify: std::sync::Arc<crate::sync_util::PermanentNotify>,
     peer_connection_states_rx: async_channel::Receiver<PeerConnectionState>,
     data_channels_rx: async_channel::Receiver<datachannel_facade::DataChannel>,
@@ -43,7 +43,13 @@ impl Connection {
         let (data_channels_tx, data_channels_rx) = async_channel::unbounded();
 
         pc.set_on_ice_candidate(Some(move |cand: Option<&str>| {
-            let _ = ice_candidates_tx.try_send(cand.map(|v| v.to_string()));
+            let cand = if let Some(cand) = cand {
+                cand
+            } else {
+                ice_candidates_tx.close();
+                return;
+            };
+            let _ = ice_candidates_tx.try_send(cand.to_string());
         }));
         pc.set_on_ice_gathering_state_change(Some({
             let ice_candidates_gathered_notify =
@@ -76,7 +82,7 @@ impl Connection {
         )))
     }
 
-    pub async fn next_ice_candidate(&self) -> Option<Option<String>> {
+    pub async fn next_ice_candidate(&self) -> Option<String> {
         self.ice_candidates_rx.recv().await.ok()
     }
 

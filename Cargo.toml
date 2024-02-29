@@ -4,7 +4,7 @@ members = ["datachannel-facade", "examples/simple-wasm-client", "examples/simple
 [package]
 name = "dachannel"
 description = "Less painful WebRTC DataChannels"
-version = "0.2.1"
+version = "0.3.1"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/coevolutions/dachannel"

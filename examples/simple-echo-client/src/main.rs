@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         },
     )?;
     let _conn = dachannel_client::ConnectOptions::new()
-        .connect(cb, args.connect_url)
+        .connect(cb, &args.connect_url)
         .await?;
 
     let stdin = std::io::stdin();

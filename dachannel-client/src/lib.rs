@@ -30,7 +30,7 @@ impl ConnectOptions {
     pub async fn connect(
         self,
         cb: dachannel::ConnectionBuilder,
-        url: String,
+        url: &str,
     ) -> Result<dachannel::Connection, Error> {
         let conn = cb.build();
 
@@ -88,7 +88,7 @@ mod test {
                 .unwrap();
 
             let _conn = ConnectOptions::new()
-                .connect(cb, format!("http://127.0.0.1:{}", local_addr.port()))
+                .connect(cb, &format!("http://127.0.0.1:{}", local_addr.port()))
                 .await
                 .unwrap();
 

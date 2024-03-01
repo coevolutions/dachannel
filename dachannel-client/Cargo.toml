@@ -1,6 +1,6 @@
 [package]
 name = "dachannel-client"
-version = "0.2.1"
+version = "0.3.0"
 description = "Client library for dachannel"
 edition = "2021"
 license = "MIT"

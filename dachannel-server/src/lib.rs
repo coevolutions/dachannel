@@ -39,10 +39,10 @@ impl Connecting {
     }
 
     /// The HTTP Authorization header, if any.
-    pub fn authorization(&self) -> Option<&str> {
+    pub fn header(&self, key: impl axum::http::header::AsHeaderName) -> Option<&str> {
         self.parts
             .headers
-            .get(axum::http::header::AUTHORIZATION)
+            .get(key)
             .map(|v| v.to_str().ok())
             .flatten()
     }
@@ -180,7 +180,10 @@ impl ServeOptions {
                         }))
                         .layer(
                             tower_http::cors::CorsLayer::new()
-                                .allow_headers([axum::http::header::AUTHORIZATION])
+                                .allow_headers([
+                                    axum::http::header::AUTHORIZATION,
+                                    "*".try_into().unwrap(),
+                                ])
                                 .allow_methods([axum::http::Method::POST])
                                 .allow_origin(tower_http::cors::Any),
                         )

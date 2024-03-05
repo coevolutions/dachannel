@@ -11,18 +11,22 @@ pub enum Error {
 }
 
 pub struct ConnectOptions {
-    authorization: Option<String>,
+    headers: reqwest::header::HeaderMap,
 }
 
 impl ConnectOptions {
     pub fn new() -> Self {
         Self {
-            authorization: None,
+            headers: reqwest::header::HeaderMap::new(),
         }
     }
 
-    pub fn authorization(mut self, authorization: Option<String>) -> Self {
-        self.authorization = authorization;
+    pub fn header(
+        mut self,
+        key: impl reqwest::header::IntoHeaderName,
+        value: impl Into<reqwest::header::HeaderValue>,
+    ) -> Self {
+        self.headers.append(key, value.into());
         self
     }
 
@@ -39,11 +43,13 @@ impl ConnectOptions {
         let offer_sdp = conn.local_description()?.unwrap().sdp;
 
         let client = reqwest::Client::new();
-        let mut req = client.post(url).body(offer_sdp);
-        if let Some(authorization) = self.authorization {
-            req = req.header(reqwest::header::AUTHORIZATION, authorization);
-        }
-        let res = req.send().await?.error_for_status()?;
+        let res = client
+            .post(url)
+            .body(offer_sdp)
+            .headers(self.headers)
+            .send()
+            .await?
+            .error_for_status()?;
         let answer_sdp =
             String::from_utf8(res.bytes().await?.to_vec()).map_err(|_| Error::MalformedBody)?;
 

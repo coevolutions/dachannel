@@ -420,7 +420,7 @@ dependencies = [
 
 [[package]]
 name = "dachannel-client"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "dachannel",
  "dachannel-server",
@@ -431,7 +431,7 @@ dependencies = [
 
 [[package]]
 name = "dachannel-server"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "async-channel",
  "axum",

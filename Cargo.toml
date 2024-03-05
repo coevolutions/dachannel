@@ -10,7 +10,6 @@ license = "MIT"
 repository = "https://github.com/coevolutions/dachannel"
 
 [dependencies]
-async-lock = "3"
 datachannel-facade = { version = "0.2", path = "datachannel-facade" }
 futures = "0.3"
 event-listener = "5"

@@ -1,16 +1,20 @@
+use futures::StreamExt as _;
+
 /// The receiver half of a channel.
 pub struct Receiver {
-    rx: async_channel::Receiver<Result<Vec<u8>, datachannel_facade::Error>>,
+    rx: futures::channel::mpsc::UnboundedReceiver<Result<Vec<u8>, datachannel_facade::Error>>,
 }
 
 impl Receiver {
     /// Receive a datagram from the channel, or [`None`] if the channel is closed.
-    pub async fn recv(&self) -> Result<Vec<u8>, std::io::Error> {
+    pub async fn recv(&mut self) -> Result<Vec<u8>, std::io::Error> {
         Ok(self
             .rx
-            .recv()
+            .next()
             .await
-            .map_err(|_| std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "receiver closed"))?
+            .ok_or_else(|| {
+                std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "receiver closed")
+            })?
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?)
     }
 
@@ -58,7 +62,7 @@ impl Channel {
             is_open_notify.notify();
         }
 
-        let (tx, rx) = async_channel::unbounded();
+        let (tx, rx) = futures::channel::mpsc::unbounded();
 
         dc.set_on_open(Some({
             let is_open_notify = std::sync::Arc::clone(&is_open_notify);
@@ -69,20 +73,20 @@ impl Channel {
         dc.set_on_message(Some({
             let tx = tx.clone();
             move |buf: &[u8]| {
-                let _ = tx.try_send(Ok(buf.to_vec()));
+                let _ = tx.unbounded_send(Ok(buf.to_vec()));
             }
         }));
         dc.set_on_error(Some({
             let tx = tx.clone();
             move |err: datachannel_facade::Error| {
-                let _ = tx.try_send(Err(err));
-                tx.close();
+                let _ = tx.unbounded_send(Err(err));
+                tx.close_channel();
             }
         }));
         dc.set_on_close(Some({
             let tx = tx.clone();
             move || {
-                tx.close();
+                tx.close_channel();
             }
         }));
 
@@ -93,7 +97,7 @@ impl Channel {
     }
 
     /// Receive a datagram from the channel, or [`None`] if the channel is closed.
-    pub async fn recv(&self) -> Result<Vec<u8>, std::io::Error> {
+    pub async fn recv(&mut self) -> Result<Vec<u8>, std::io::Error> {
         self.receiver.recv().await
     }
 

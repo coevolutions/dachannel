@@ -407,6 +407,7 @@ impl DataChannel {
 #[cfg(test)]
 mod test {
     use super::*;
+    use futures::StreamExt as _;
 
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
@@ -484,14 +485,14 @@ mod test {
             }
         }));
 
-        let (tx1, rx1) = async_channel::bounded(1);
+        let (tx1, mut rx1) = futures::channel::mpsc::unbounded();
         dc1.set_on_message(Some(move |msg: &[u8]| {
-            tx1.try_send(msg.to_vec()).unwrap();
+            tx1.unbounded_send(msg.to_vec()).unwrap();
         }));
 
-        let (tx2, rx2) = async_channel::bounded(1);
+        let (tx2, mut rx2) = futures::channel::mpsc::unbounded();
         dc2.set_on_message(Some(move |msg: &[u8]| {
-            tx2.try_send(msg.to_vec()).unwrap();
+            tx2.unbounded_send(msg.to_vec()).unwrap();
         }));
 
         pc2.set_remote_description(&pc1.local_description().unwrap().unwrap())
@@ -509,9 +510,9 @@ mod test {
         dc2_open.notified().await;
 
         dc1.send(b"hello world!").unwrap();
-        assert_eq!(rx2.recv().await.unwrap(), b"hello world!");
+        assert_eq!(rx2.next().await.unwrap(), b"hello world!");
 
         dc2.send(b"goodbye world!").unwrap();
-        assert_eq!(rx1.recv().await.unwrap(), b"goodbye world!");
+        assert_eq!(rx1.next().await.unwrap(), b"goodbye world!");
     }
 }

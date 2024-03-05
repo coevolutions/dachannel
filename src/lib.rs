@@ -32,7 +32,7 @@ mod test {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
     pub async fn test_connection_communicate() {
         let cb1 = Connection::builder(Default::default()).unwrap();
-        let chan1 = cb1
+        let mut chan1 = cb1
             .create_data_channel(
                 "test",
                 DataChannelOptions {
@@ -47,7 +47,7 @@ mod test {
         conn1.ice_candidates_gathered().await;
 
         let cb2 = Connection::builder(Default::default()).unwrap();
-        let chan2 = cb2
+        let mut chan2 = cb2
             .create_data_channel(
                 "test",
                 DataChannelOptions {
@@ -83,13 +83,13 @@ mod test {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
     pub async fn test_connection_communicate_nonnegotiated() {
         let cb1 = Connection::builder(Default::default()).unwrap();
-        let chan1 = cb1.create_data_channel("test", Default::default()).unwrap();
+        let mut chan1 = cb1.create_data_channel("test", Default::default()).unwrap();
         let conn1 = cb1.build();
         conn1.set_local_description(SdpType::Offer).await.unwrap();
         conn1.ice_candidates_gathered().await;
 
         let cb2 = Connection::builder(Default::default()).unwrap();
-        let conn2 = cb2.build();
+        let mut conn2 = cb2.build();
         conn2
             .set_remote_description(&conn1.local_description().unwrap().unwrap())
             .await
@@ -103,7 +103,7 @@ mod test {
             .await
             .unwrap();
 
-        let chan2 = conn2.accept_channel().await.unwrap();
+        let mut chan2 = conn2.accept_channel().await.unwrap();
 
         chan1.send(b"hello world!").await.unwrap();
         assert_eq!(chan2.recv().await.unwrap(), b"hello world!");

@@ -70,10 +70,12 @@ mod test {
     #[cfg(not(target_arch = "wasm32"))]
     #[tokio::test]
     pub async fn test_connect() {
+        use futures::StreamExt as _;
+
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let local_addr = listener.local_addr().unwrap();
 
-        let (serve_fut, connecting_rx) = dachannel_server::ServeOptions::new().serve(listener);
+        let (serve_fut, mut connecting_rx) = dachannel_server::ServeOptions::new().serve(listener);
 
         tokio::spawn(async move {
             serve_fut.await.unwrap();
@@ -101,8 +103,8 @@ mod test {
             dc.send(b"hello world").await.unwrap();
         });
 
-        let connecting = connecting_rx.recv().await.unwrap();
-        let dc = connecting
+        let connecting = connecting_rx.next().await.unwrap();
+        let mut dc = connecting
             .create_data_channel(
                 "test",
                 dachannel::DataChannelOptions {

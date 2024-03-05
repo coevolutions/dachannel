@@ -5,6 +5,7 @@ pub use datachannel_facade::Error;
 pub use datachannel_facade::IceGatheringState;
 pub use datachannel_facade::PeerConnectionState;
 pub use datachannel_facade::SdpType;
+use futures::StreamExt as _;
 
 pub struct ConnectionBuilder(Connection);
 
@@ -27,10 +28,10 @@ impl ConnectionBuilder {
 
 pub struct Connection {
     pc: datachannel_facade::PeerConnection,
-    ice_candidates_rx: async_channel::Receiver<String>,
+    ice_candidates_rx: futures::channel::mpsc::UnboundedReceiver<String>,
     ice_candidates_gathered_notify: std::sync::Arc<crate::sync_util::PermanentNotify>,
-    peer_connection_states_rx: async_channel::Receiver<PeerConnectionState>,
-    data_channels_rx: async_channel::Receiver<datachannel_facade::DataChannel>,
+    peer_connection_states_rx: futures::channel::mpsc::UnboundedReceiver<PeerConnectionState>,
+    data_channels_rx: futures::channel::mpsc::UnboundedReceiver<datachannel_facade::DataChannel>,
 }
 
 impl Connection {
@@ -38,18 +39,19 @@ impl Connection {
         let ice_candidates_gathered_notify =
             std::sync::Arc::new(crate::sync_util::PermanentNotify::new());
 
-        let (ice_candidates_tx, ice_candidates_rx) = async_channel::unbounded();
-        let (peer_connection_states_tx, peer_connection_states_rx) = async_channel::unbounded();
-        let (data_channels_tx, data_channels_rx) = async_channel::unbounded();
+        let (ice_candidates_tx, ice_candidates_rx) = futures::channel::mpsc::unbounded();
+        let (peer_connection_states_tx, peer_connection_states_rx) =
+            futures::channel::mpsc::unbounded();
+        let (data_channels_tx, data_channels_rx) = futures::channel::mpsc::unbounded();
 
         pc.set_on_ice_candidate(Some(move |cand: Option<&str>| {
             let cand = if let Some(cand) = cand {
                 cand
             } else {
-                ice_candidates_tx.close();
+                ice_candidates_tx.close_channel();
                 return;
             };
-            let _ = ice_candidates_tx.try_send(cand.to_string());
+            let _ = ice_candidates_tx.unbounded_send(cand.to_string());
         }));
         pc.set_on_ice_gathering_state_change(Some({
             let ice_candidates_gathered_notify =
@@ -61,10 +63,10 @@ impl Connection {
             }
         }));
         pc.set_on_connection_state_change(Some(move |state: PeerConnectionState| {
-            let _ = peer_connection_states_tx.try_send(state);
+            let _ = peer_connection_states_tx.unbounded_send(state);
         }));
         pc.set_on_data_channel(Some(move |dc: datachannel_facade::DataChannel| {
-            let _ = data_channels_tx.try_send(dc);
+            let _ = data_channels_tx.unbounded_send(dc);
         }));
 
         Self {
@@ -82,21 +84,21 @@ impl Connection {
         )))
     }
 
-    pub async fn next_ice_candidate(&self) -> Option<String> {
-        self.ice_candidates_rx.recv().await.ok()
+    pub async fn next_ice_candidate(&mut self) -> Option<String> {
+        self.ice_candidates_rx.next().await
     }
 
     pub async fn ice_candidates_gathered(&self) {
         self.ice_candidates_gathered_notify.notified().await;
     }
 
-    pub async fn next_connection_state(&self) -> Option<PeerConnectionState> {
-        self.peer_connection_states_rx.recv().await.ok()
+    pub async fn next_connection_state(&mut self) -> Option<PeerConnectionState> {
+        self.peer_connection_states_rx.next().await
     }
 
-    pub async fn accept_channel(&self) -> Option<crate::Channel> {
+    pub async fn accept_channel(&mut self) -> Option<crate::Channel> {
         Some(super::Channel::wrap(
-            self.data_channels_rx.recv().await.ok()?,
+            self.data_channels_rx.next().await?,
             true,
         ))
     }

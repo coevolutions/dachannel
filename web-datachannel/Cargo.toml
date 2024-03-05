@@ -20,7 +20,7 @@ version = "0.3"
 features = ["MessageEvent", "RtcPeerConnection", "RtcSignalingState", "RtcSdpType", "RtcSessionDescriptionInit", "RtcPeerConnectionIceEvent", "RtcIceCandidate", "RtcIceCandidateInit", "RtcDataChannel", "RtcDataChannelInit", "RtcDataChannelEvent", "RtcIceGatheringState", "RtcPeerConnectionState", "RtcSessionDescription", "RtcConfiguration", "RtcIceTransportPolicy", "ErrorEvent"]
 
 [dev-dependencies]
-async-channel = "2"
 async-notify = "0.3"
+futures = "0.3"
 wasm-bindgen-test = "0.3"
 console_error_panic_hook = "0.1"

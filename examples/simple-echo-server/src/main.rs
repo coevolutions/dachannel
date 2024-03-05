@@ -1,4 +1,5 @@
 use clap::Parser as _;
+use futures::StreamExt as _;
 
 #[derive(clap::Parser)]
 struct Args {
@@ -16,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let local_addr = listener.local_addr()?;
     println!("listening on: {}", local_addr);
 
-    let (serve_fut, connecting_rx) = dachannel_server::ServeOptions::new()
+    let (serve_fut, mut connecting_rx) = dachannel_server::ServeOptions::new()
         .ice_servers(vec![dachannel::IceServer {
             urls: vec![
                 "stun:stun.l.google.com:19302".to_string(),
@@ -34,11 +35,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         serve_fut.await.unwrap();
     });
 
-    while let Some(connecting) = connecting_rx.recv().await.ok() {
+    while let Some(connecting) = connecting_rx.next().await {
         let remote_addr = connecting.remote_addr().clone();
         println!("[{}] connected", remote_addr);
 
-        let dc = connecting.create_data_channel(
+        let mut dc = connecting.create_data_channel(
             "test",
             dachannel::DataChannelOptions {
                 negotiated: true,

@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let config: dachannel::Configuration = Default::default();
     let cb = dachannel::Connection::builder(config)?;
-    let dc = cb.create_data_channel(
+    let mut dc = cb.create_data_channel(
         "test",
         dachannel::DataChannelOptions {
             negotiated: true,

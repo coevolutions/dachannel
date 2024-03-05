@@ -1,4 +1,5 @@
 use datachannel_facade::platform::native::ConfigurationExt as _;
+use futures::SinkExt as _;
 use http_body_util::BodyExt as _;
 use tokio::io::AsyncWriteExt;
 
@@ -114,6 +115,8 @@ async fn offer(
     let (answer_sdp_tx, answer_sdp_rx) = tokio::io::duplex(4096);
     state
         .connecting_tx
+        .lock()
+        .await
         .send(Connecting {
             parts,
             remote_addr,
@@ -132,7 +135,7 @@ async fn offer(
 struct AppState {
     bind_addr: std::net::SocketAddr,
     ice_servers: Vec<dachannel::IceServer>,
-    connecting_tx: async_channel::Sender<Connecting>,
+    connecting_tx: tokio::sync::Mutex<futures::channel::mpsc::Sender<Connecting>>,
 }
 
 pub struct ServeOptions {
@@ -163,9 +166,9 @@ impl ServeOptions {
         listener: tokio::net::TcpListener,
     ) -> (
         impl std::future::Future<Output = Result<(), std::io::Error>>,
-        async_channel::Receiver<Connecting>,
+        futures::channel::mpsc::Receiver<Connecting>,
     ) {
-        let (connecting_tx, connecting_rx) = async_channel::bounded(self.backlog);
+        let (connecting_tx, connecting_rx) = futures::channel::mpsc::channel(self.backlog);
         (
             (move || async move {
                 let bind_addr = listener.local_addr()?;
@@ -176,7 +179,7 @@ impl ServeOptions {
                         .with_state(std::sync::Arc::new(AppState {
                             bind_addr,
                             ice_servers: self.ice_servers,
-                            connecting_tx: connecting_tx.clone(),
+                            connecting_tx: tokio::sync::Mutex::new(connecting_tx),
                         }))
                         .layer(
                             tower_http::cors::CorsLayer::new()

@@ -8,6 +8,7 @@ repository = "https://github.com/coevolutions/dachannel"
 
 [dependencies]
 dachannel = { version = "0.3", path = ".." }
+futures = "0.3"
 reqwest = "0.11"
 thiserror = "1"
 
